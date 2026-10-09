@@ -352,9 +352,9 @@ a:hover { color: var(--gold-500); }
 .ticker-item::after {
   content: "";
   display: inline-block; vertical-align: middle;
-  width: 17px; height: 22px;
+  width: 18px; height: 18px;
   margin-inline-start: 30px;
-  background: url('/static/img/nassr-logo.png') no-repeat center / contain;
+  background: url('/static/img/nassr-logo.png?v=2') no-repeat center / contain;
   filter: drop-shadow(0 1px 1px rgba(215, 155, 24, .4));
 }
 .ticker-item:hover { color: var(--gold-600); }
@@ -368,7 +368,7 @@ a:hover { color: var(--gold-500); }
   .ticker-label { padding: 9px 18px 9px 14px; font-size: .84rem; }
   .ticker-dot { width: 7px; height: 7px; }
   .ticker-item { font-size: .88rem; padding: 11px 0; margin-inline-end: 20px; }
-  .ticker-item::after { margin-inline-start: 20px; width: 13px; height: 17px; }
+  .ticker-item::after { margin-inline-start: 20px; width: 14px; height: 14px; }
 }
 .block-title {
   display: flex; align-items: center; gap: 10px;

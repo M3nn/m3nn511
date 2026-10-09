@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}منصة أخبار النصر{% endblock %}</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon.png') }}">
-  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicon.png') }}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon.png') }}?v=2">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicon.png') }}?v=2">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/favicon.png') }}?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@700;800&family=Cairo:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=29">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=30">
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 </head>
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
       <a class="brand" href="{{ url_for('news.home') }}">
-        <img class="brand-mark" src="{{ url_for('static', filename='img/nassr-logo.png') }}" alt="النصر السعودي" width="716" height="960">
+        <img class="brand-mark" src="{{ url_for('static', filename='img/nassr-logo.png') }}?v=2" alt="النصر السعودي" width="640" height="640">
         <span class="brand-text">
           <span class="brand-lead">منصة</span>
           <span class="brand-sub">أخبار النصر</span>

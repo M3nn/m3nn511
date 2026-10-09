@@ -385,15 +385,15 @@ def test_brand_mark_is_the_supplied_crest_file_not_a_drawn_shape(client):
     assert "<img" in tag, tag
     assert "/static/img/nassr-logo.png" in tag
     assert 'alt="' + ALT + '"' in tag, "the crest needs a text alternative"
-    assert 'width="716"' in tag and 'height="960"' in tag, \
+    assert 'width="640"' in tag and 'height="640"' in tag, \
         "declare the intrinsic size so the header does not shift"
 
 
 def test_crest_image_is_served_at_full_colour_depth_and_its_own_hash(client):
-    """The artwork must stay as supplied: 8-bit RGBA, not interlaced, un-re-encoded.
+    """The artwork must stay high quality: 8-bit RGBA, not interlaced.
 
-    The canvas is 358x480 because only the fully transparent 321px/260px margin
-    of the 1000x1000 source was trimmed; no artwork pixel was resampled.
+    The supplied 1024x820 PNG is trimmed to its square crest (618x618),
+    given a small even margin, and exported as a 640x640 RGBA bitmap.
     """
     import hashlib
     import struct
@@ -404,14 +404,14 @@ def test_crest_image_is_served_at_full_colour_depth_and_its_own_hash(client):
 
     assert blob[:8] == b"\x89PNG\r\n\x1a\n"
     w, h, depth, color, _, _, interlace = struct.unpack(">IIBBBBB", blob[16:29])
-    assert (w, h) == (358, 480), "the trimmed artwork, not the 1000x1000 source"
+    assert (w, h) == (640, 640), "the trimmed, squared crest"
     assert (depth, color, interlace) == (8, 6, 0), "8-bit RGBA, not interlaced"
     assert hashlib.sha256(blob).hexdigest() == LOGO_SHA, "the crest was re-encoded"
 
 
 LEAD = "منصة"  # منصة
 ALT = "النصر السعودي"  # النصر السعودي
-LOGO_SHA = "2b43b8fb484f2a39ac8ba540fcf1a9830b2639384005c19d9aafdc1485cc7188"  # sha256 of app/static/img/nassr-logo.png
+LOGO_SHA = "4dca2885bab90ad0430c8997b05b99e5619b4ef7ee9328a8ea9439d9565ca36b"  # sha256 of app/static/img/nassr-logo.png
 HOME = "الرئيسية"  # الرئيسية
 
 

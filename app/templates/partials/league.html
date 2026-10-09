@@ -4,7 +4,7 @@
    محلية، توقيت الرياض، تاريخ ميلادي وهجري، ملعب ومدينة بالعربية. #}
 {% macro crest(t) %}
   {% if t.crest %}
-    <img class="crest" src="{{ url_for('static', filename='img/teams/' ~ t.crest) }}"
+    <img class="crest" src="{{ url_for('static', filename='img/teams/' ~ t.crest) }}?v=2"
          alt="{{ t.name }}" width="36" height="36" loading="lazy">
   {% else %}
     <span class="crest crest-fallback" aria-hidden="true">{{ t.name[:1] }}</span>
