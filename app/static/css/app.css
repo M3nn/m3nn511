@@ -337,10 +337,12 @@ a:hover { color: var(--gold-500); }
 .ticker-group { display: flex; align-items: center; flex: 0 0 auto; }
 .ticker-item {
   display: inline-block; padding: 12px 0;
+  /* مسافة موحّدة بعد أيقونة الفاصل — تطبَّق على كل عنصر حتى عند درز
+     تكرار المجموعتين في الشريط المتحرك، فلا تلتصق الأيقونة بالعنوان التالي */
+  margin-inline-end: 30px;
   color: var(--navy-800); font-weight: 700; font-size: .95rem;
   white-space: nowrap; transition: color .18s ease;
 }
-.ticker-item + .ticker-item { margin-inline-start: 30px; }
 .ticker-item::after {
   content: "";
   display: inline-block; vertical-align: middle;
@@ -359,8 +361,7 @@ a:hover { color: var(--gold-500); }
 @media (max-width: 640px) {
   .ticker-label { padding: 9px 18px 9px 14px; font-size: .84rem; }
   .ticker-dot { width: 7px; height: 7px; }
-  .ticker-item { font-size: .88rem; padding: 11px 0; }
-  .ticker-item + .ticker-item { margin-inline-start: 20px; }
+  .ticker-item { font-size: .88rem; padding: 11px 0; margin-inline-end: 20px; }
   .ticker-item::after { margin-inline-start: 20px; width: 13px; height: 17px; }
 }
 .block-title {
