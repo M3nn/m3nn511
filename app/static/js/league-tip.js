@@ -113,6 +113,7 @@
         box.appendChild(inEl);
         box.appendChild(outEl);
         l.appendChild(box);
+        if (s.team) l.appendChild(text('tip-team-badge', s.team));
         subs.appendChild(l);
       });
       tip.appendChild(subs);
