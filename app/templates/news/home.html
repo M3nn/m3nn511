@@ -137,6 +137,17 @@
     </section>
   {% endif %}
 
+  {# فاصل أنيق بين «أحدث الأخبار» و«التصنيفات»: شعار النادي داخل ميدالية ذهبية بين خطّين #}
+  {% if categories and (grid or page.has_next) %}
+    <div class="section-divider" role="separator" aria-hidden="true">
+      <span class="divider-rule"></span>
+      <span class="divider-emblem">
+        <img src="{{ url_for('static', filename='img/nassr-logo.png') }}" alt="" width="716" height="960" loading="lazy">
+      </span>
+      <span class="divider-rule"></span>
+    </div>
+  {% endif %}
+
   {% if categories %}
     <section class="block">
       <h2 class="block-title">التصنيفات</h2>
