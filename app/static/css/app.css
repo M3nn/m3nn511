@@ -56,11 +56,11 @@ a:hover { color: var(--gold-500); }
      الموظفين عند أقصى اليمين، محاذاةً تماماً لحافة عبارة "دوري روشن السعودي". */
   max-width: none;
   margin-inline: 9px;
-  display: flex; align-items: center; gap: 18px; padding: 12px 16px 36px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 18px; padding: 12px 16px; flex-wrap: wrap;
 }
 
-/* إزاحة بصرية للأسفل 36px فقط للوقو والعبارة (لا تؤثّر على التخطيط) */
-.brand { display: flex; align-items: center; gap: 10px; color: #fff; transform: translateY(36px); }
+/* إزاحة بصرية للأسفل 36px للوقو والعبارة، مع إظهارهما فوق شريط التصنيفات */
+.brand { display: flex; align-items: center; gap: 10px; color: #fff; transform: translateY(36px); position: relative; z-index: 5; }
 .brand:hover { color: var(--gold-300); }
 .brand-mark { height: 80px; width: auto; display: block; }
 .brand-text { line-height: 1.25; font-weight: 700; font-size: 1.06rem; white-space: nowrap; }
