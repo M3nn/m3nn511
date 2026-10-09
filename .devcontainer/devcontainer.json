@@ -1,0 +1,28 @@
+{
+  "name": "منصة النصر",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.13-bookworm",
+
+  "containerEnv": {
+    "HOST": "0.0.0.0",
+    "PORT": "8000",
+    "FLASK_CONFIG": "dev"
+  },
+
+  "postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt && (python -m flask --app run init-db || true) && (python -m flask --app run seed || true)",
+
+  "postStartCommand": "bash -lc 'pkill -f \"run.py\" >/dev/null 2>&1 || true; nohup python run.py > /tmp/nassr.log 2>&1 &'",
+
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "منصة النصر",
+      "onAutoForward": "openPreview"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "ms-python.vscode-pylance"]
+    }
+  }
+}
