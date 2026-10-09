@@ -7,4 +7,5 @@ WTForms==3.2.2
 python-dotenv==1.2.4
 openai==3.24.0
 waitress==3.0.2
+gunicorn==23.0.0
 hijridate==2.3.0

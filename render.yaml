@@ -1,0 +1,18 @@
+# قالب Render للنشر التلقائي عند كل push —
+# Render ⭢ New ⭢ Blueprint ⭢ اختر المستودع، واترك الباقي لهذا الملف.
+services:
+  - type: web
+    name: nassr-news
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT run:app --access-logfile - --error-logfile -
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LEAGUE_ENABLED
+        value: "1"
