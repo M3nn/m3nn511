@@ -22,19 +22,43 @@ def _flag(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _db_uri() -> str:
+    """رابط قاعدة البيانات من DATABASE_URL، مع تحويل روابط Postgres العادية
+    (postgres:// أو postgresql://) تلقائياً إلى مشغّل psycopg الإصدار الثالث
+    المثبّت في المتطلبات — فلا يحتاج المستخدم لمعرفة صيغة SQLAlchemy."""
+    uri = os.getenv(
+        "DATABASE_URL", f"sqlite:///{(ROOT_DIR / 'instance' / 'app.db').as_posix()}"
+    )
+    for old, new in (("postgres://", "postgresql+psycopg://"),
+                     ("postgresql://", "postgresql+psycopg://")):
+        if uri.startswith(old):
+            return new + uri[len(old):]
+    return uri
+
+
+def _engine_options(uri: str) -> dict:
+    """خيارات المحرك حسب نوع القاعدة: SQLite لها قيد المفاتيح الأجنبية وقفل
+    الخيوط، وقواعد الشبكة (Postgres…) لها تجميع اتصالات صحيح للخوادم."""
+    if not uri.startswith("sqlite"):
+        return {
+            "pool_pre_ping": True,
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "10")),
+        }
+    # مطلوب لتفعيل قيد المفاتيح الأجنبية في SQLite
+    return {
+        "connect_args": {"check_same_thread": False, "timeout": 15},
+        "pool_pre_ping": True,
+    }
+
+
 class Config:
     """القيم المشتركة بين بيئات التشغيل."""
 
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-insecure-key-change-me")
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", f"sqlite:///{(ROOT_DIR / 'instance' / 'app.db').as_posix()}"
-    )
+    SQLALCHEMY_DATABASE_URI = _db_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        # مطلوب لتفعيل قيد المفاتيح الأجنبية في SQLite
-        "connect_args": {"check_same_thread": False, "timeout": 15},
-        "pool_pre_ping": True,
-    }
+    SQLALCHEMY_ENGINE_OPTIONS = _engine_options(SQLALCHEMY_DATABASE_URI)
 
     # حجم الصفحة الموحّد عبر الموقع كله
     ITEMS_PER_PAGE = int(os.getenv("ITEMS_PER_PAGE", "13"))

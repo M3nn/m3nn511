@@ -125,6 +125,24 @@ server {
 
 الموقع مجاني مع إيقاف تلقائي عند الخمول — أول زيارة بطيئة قليلاً ثم تعود.
 
+**⚠️ قاعدة بيانات دائمة (مهم قبل اعتماد الموقع):** في الخطة المجانية نظام
+الملفات **مؤقت** — ملف `instance/app.db` (SQLite) يُفقد عند نوم الخدمة بعد ~15
+دقيقة خمول وعند كل إعادة نشر. للحصول على تخزين دائم مجاناً مرّر رابط Postgres:
+
+1. أنشئ قاعدة مجانية في [Neon](https://neon.tech) أو [Supabase](https://supabase.com)
+   وانسخ رابط الاتصال (يبدأ بـ `postgresql://…`).
+2. في لوحة Render: **Environment ⭢ Environment Variables** أضف:
+   `DATABASE_URL = postgresql://…` — الرابط يُحوَّل تلقائياً لمشغّل `psycopg`
+   (لا حاجة لصيغة `+psycopg`).
+3. افتح تبويب **Shell** في الخدمة ثم أنشئ الجداول:
+   ```bash
+   python -m flask --app run init-db
+   ```
+4. **Manual Deploy ⭢ Deploy** — الآن المقالات والمستخدمون يبقون عبر إعادة التشغيل.
+
+> بديل أبسط بلا أي تعديل: **PythonAnywhere** (القسم التالي) — نظام ملفاته دائم
+> فتعمل SQLite كما هي.
+
 ---
 
 ## 4) PythonAnywhere
@@ -153,6 +171,7 @@ server {
 | `SECRET_KEY` | **إلزامي** — عشوائي طويل، ثابت بين عمليات إعادة التشغيل |
 | `OPENAI_API_KEY` | اختياري — غيابه يعطّل ميزتي AI فقط |
 | `LEAGUE_ENABLED` | `1` (أو `0` إن كانت الاستضافة تحجب ESPN) |
+| `DATABASE_URL` | اختياري — رابط Postgres دائم (مثل Neon/Supabase) بدل SQLite المؤقت على Render |
 | `LOG_LEVEL` | `INFO` (إنتاج) أو `WARNING` (أقل ضجيجاً) |
 
 ## قائمة الفحص النهائية (production checklist)
