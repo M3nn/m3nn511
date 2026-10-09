@@ -56,7 +56,7 @@ a:hover { color: var(--gold-500); }
      الموظفين عند أقصى اليمين، محاذاةً تماماً لحافة عبارة "دوري روشن السعودي". */
   max-width: none;
   margin-inline: 9px;
-  display: flex; align-items: center; gap: 18px; padding: 12px 16px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 18px; padding: 12px 16px; flex-wrap: wrap; position: relative;
 }
 
 /* إزاحة بصرية للأسفل 36px للوقو والعبارة، مع إظهارهما فوق شريط التصنيفات */
@@ -162,6 +162,11 @@ a:hover { color: var(--gold-500); }
   background: var(--gold-grad); color: var(--navy-900) !important;
   padding: 7px 14px; border-radius: var(--radius); font-weight: 600;
   box-shadow: var(--shadow-gold);
+}
+/* زر «دخول الموظفين»: في أقصى يسار الهيدر، مقابل كلمة «منصة»، وفوق كلمة «ابحث» */
+.topbar .cta {
+  position: absolute; inset-inline-end: 16px; top: 50%;
+  transform: translateY(calc(-50% + 28px));
 }
 
 .cats { position: relative; background: var(--navy-900); border-top: 1px solid var(--navy-700); }
