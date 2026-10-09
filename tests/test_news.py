@@ -411,7 +411,7 @@ def test_crest_image_is_served_at_full_colour_depth_and_its_own_hash(client):
 
 LEAD = "منصة"  # منصة
 ALT = "النصر السعودي"  # النصر السعودي
-LOGO_SHA = "4dca2885bab90ad0430c8997b05b99e5619b4ef7ee9328a8ea9439d9565ca36b"  # sha256 of app/static/img/nassr-logo.png
+LOGO_SHA = "48d4782dabb74779e399e61b85a9dbbdff81a95c31b25e2dc27ed89bf6566891"  # sha256 of app/static/img/nassr-logo.png
 HOME = "الرئيسية"  # الرئيسية
 
 

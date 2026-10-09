@@ -354,7 +354,7 @@ a:hover { color: var(--gold-500); }
   display: inline-block; vertical-align: middle;
   width: 18px; height: 18px;
   margin-inline-start: 30px;
-  background: url('/static/img/nassr-logo.png?v=2') no-repeat center / contain;
+  background: url('/static/img/nassr-logo.png?v=3') no-repeat center / contain;
   filter: drop-shadow(0 1px 1px rgba(215, 155, 24, .4));
 }
 .ticker-item:hover { color: var(--gold-600); }
