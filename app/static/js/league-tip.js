@@ -1,5 +1,7 @@
-/* تلميح ملخص المباراة: يظهر عند المرور بالماوس على مباراة منتهية تحمل
-   data-summary (أو بالتركيز بلوحة المفاتيح، أو باللمس على الجوال).
+/* تلميح المباريات: يظهر عند المرور بالماوس (أو التركيز، أو اللمس) على:
+   - مباراة منتهية تحمل data-summary ⇒ ملخص الأحداث (أهداف/بطاقات/تبديلات/صنّاع).
+   - مباراة قادمة تحمل data-preview ⇒ معاينة ذكية (ترتيب، حالة، مواجهات،
+     هدافون، غيابات/بطاقات، احتمالات فوز).
    يُلحق الصندوق بـ <body> بموضع ثابت (fixed) حتى لا يُقتطع بفعل overflow
    عمود النتائج. كل البيانات من مصدر خارجي، لذا لا نستخدم innerHTML للنصوص —
    نعتمد textContent فقط. */
@@ -59,6 +61,22 @@
     frag.appendChild(text('tip-name', player));
     if (team) frag.appendChild(text('tip-team', ' · ' + team));
     return frag;
+  }
+
+  // حرف النتيجة في سلسلة الحالة: ف=فوز، ت=تعادل، خ=خسارة
+  var FORM = { W: ['ف', 'f-w'], D: ['ت', 'f-d'], L: ['خ', 'f-l'] };
+
+  function formPill(ch) {
+    var info = FORM[ch] || ['ـ', 'f-d'];
+    var span = document.createElement('span');
+    span.className = 'tip-form-pill ' + info[1];
+    span.textContent = info[0];
+    return span;
+  }
+
+  function hasCards(info) {
+    return !!(info && ((info.suspended && info.suspended.length) ||
+                       (info.yellow && info.yellow.length)));
   }
 
   function render(row, data) {
@@ -131,6 +149,146 @@
     }
   }
 
+  function renderPreview(row, data) {
+    tip.textContent = '';
+
+    var names = row.querySelectorAll('.side-name');
+    var hour = row.querySelector('.match-hour');
+    var homeName = names[0] ? names[0].textContent.trim() : '';
+    var awayName = names[1] ? names[1].textContent.trim() : '';
+
+    var head = document.createElement('div');
+    head.className = 'tip-head';
+    head.appendChild(text('tip-head-team', homeName));
+    head.appendChild(text('tip-head-score', hour ? hour.textContent.trim() : 'VS'));
+    head.appendChild(text('tip-head-team', awayName));
+    tip.appendChild(head);
+
+    function teamLine(name, extra) {
+      var l = line();
+      l.appendChild(text('tip-name', name));
+      extra(l);
+      return l;
+    }
+
+    // ترتيب دوري روشن
+    var st = data.standings || {};
+    var stH = st.home, stA = st.away;
+    if (stH || stA) {
+      var rankSec = section('ترتيب دوري روشن');
+      [[homeName, stH], [awayName, stA]].forEach(function (pair) {
+        rankSec.appendChild(teamLine(pair[0], function (l) {
+          var info = pair[1];
+          if (!info) return;
+          if (info.rank != null) l.appendChild(text('tip-rank', '#' + info.rank));
+          var bits = [];
+          if (info.points != null) bits.push(info.points + ' نقطة');
+          if (info.played != null) bits.push(info.played + ' مباريات');
+          if (info.record) bits.push(String(info.record).replace(/-/g, '·'));
+          if (bits.length) l.appendChild(text('tip-team', bits.join(' · ')));
+        }));
+      });
+      tip.appendChild(rankSec);
+    }
+
+    // آخر خمس مباريات (الأقدم ثم الأحدث)
+    var formH = (data.form || {}).home, formA = (data.form || {}).away;
+    if (formH || formA) {
+      var formSec = section('آخر ٥ مباريات');
+      [[homeName, formH], [awayName, formA]].forEach(function (pair) {
+        formSec.appendChild(teamLine(pair[0], function (l) {
+          var seq = String(pair[1] || '');
+          if (!seq) return;
+          var wrap = document.createElement('span');
+          wrap.className = 'tip-form';
+          seq.split('').reverse().forEach(function (ch) { wrap.appendChild(formPill(ch)); });
+          l.appendChild(wrap);
+        }));
+      });
+      tip.appendChild(formSec);
+    }
+
+    // المواجهات المباشرة
+    var h2h = data.h2h;
+    if (h2h && h2h.events && h2h.events.length) {
+      var h2hSec = section('المواجهات المباشرة');
+      h2h.events.forEach(function (ev) {
+        var l = line();
+        l.appendChild(text('tip-min tip-min-date', ev.date));
+        l.appendChild(text('tip-name', ev.home));
+        l.appendChild(text('tip-vs', (ev.home_score || '0') + ' - ' + (ev.away_score || '0')));
+        l.appendChild(text('tip-name', ev.away));
+        h2hSec.appendChild(l);
+      });
+      tip.appendChild(h2hSec);
+    }
+
+    // الهدافون وصنّاع الأهداف
+    var ld = data.leaders || {};
+    if ((ld.home && (ld.home.scorer || ld.home.assist)) ||
+        (ld.away && (ld.away.scorer || ld.away.assist))) {
+      var leadSec = section('الهدافون وصنّاع الأهداف');
+      [[homeName, ld.home], [awayName, ld.away]].forEach(function (pair) {
+        var info = pair[1] || {};
+        if (!info.scorer && !info.assist) return;
+        leadSec.appendChild(teamLine(pair[0], function (l) {
+          if (info.scorer) {
+            l.appendChild(text('tip-chip', '⚽ ' + info.scorer.name + ' (' + info.scorer.value + ')'));
+          }
+          if (info.assist) {
+            l.appendChild(text('tip-chip', '🅰 ' + info.assist.name + ' (' + info.assist.value + ')'));
+          }
+        }));
+      });
+      if (leadSec.querySelector('.tip-line')) tip.appendChild(leadSec);
+    }
+
+    // الغيابات والبطاقات
+    var cd = data.cards || {};
+    if (hasCards(cd.home) || hasCards(cd.away)) {
+      var cardsSec = section('الغيابات والبطاقات');
+      [[homeName, cd.home], [awayName, cd.away]].forEach(function (pair) {
+        var info = pair[1] || {};
+        if (!hasCards(info)) return;
+        cardsSec.appendChild(teamLine(pair[0], function (l) {
+          if (info.suspended && info.suspended.length) {
+            l.appendChild(text('tip-chip tip-chip-red', '🟥 موقوف: ' + info.suspended.join('، ')));
+          }
+          (info.yellow || []).forEach(function (y) {
+            l.appendChild(text('tip-chip tip-chip-yellow', '🟨 ' + y.name + ' (' + y.count + ')'));
+          });
+        }));
+      });
+      if (cardsSec.querySelector('.tip-line')) tip.appendChild(cardsSec);
+    }
+
+    // احتمالات الفوز
+    var odds = data.odds;
+    if (odds && odds.home != null && odds.away != null) {
+      var oddsSec = section('احتمالات الفوز');
+      var bar = document.createElement('div');
+      bar.className = 'tip-odds-bar';
+      function segment(cls, pct) {
+        var s = document.createElement('span');
+        s.className = cls;
+        s.style.width = Math.max(0, pct) + '%';
+        return s;
+      }
+      bar.appendChild(segment('tip-odds-home', odds.home));
+      if (odds.draw != null) bar.appendChild(segment('tip-odds-draw', odds.draw));
+      bar.appendChild(segment('tip-odds-away', odds.away));
+      oddsSec.appendChild(bar);
+
+      var labels = document.createElement('div');
+      labels.className = 'tip-odds-labels';
+      labels.appendChild(text('', homeName + ' ' + odds.home + '%'));
+      if (odds.draw != null) labels.appendChild(text('', 'تعادل ' + odds.draw + '%'));
+      labels.appendChild(text('', awayName + ' ' + odds.away + '%'));
+      oddsSec.appendChild(labels);
+      tip.appendChild(oddsSec);
+    }
+  }
+
   function place(row) {
     var rect = row.getBoundingClientRect();
     var w = tip.offsetWidth;
@@ -163,11 +321,16 @@
 
   function show(row) {
     var raw = row.getAttribute('data-summary');
+    var kind = 'summary';
+    if (!raw) {
+      raw = row.getAttribute('data-preview');
+      kind = 'preview';
+    }
     if (!raw) return;
     var data;
     try { data = JSON.parse(raw); } catch (e) { return; }
     ensureTip();
-    render(row, data);
+    if (kind === 'preview') renderPreview(row, data); else render(row, data);
     tip.hidden = false;
     active = row;
     place(row);
@@ -186,7 +349,9 @@
   }
 
   function closestRow(target) {
-    return target && target.closest ? target.closest('.match[data-summary]') : null;
+    return target && target.closest
+      ? target.closest('.match[data-summary], .match[data-preview]')
+      : null;
   }
 
   document.addEventListener('mouseover', function (e) {

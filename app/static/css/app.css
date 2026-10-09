@@ -856,7 +856,7 @@ textarea:focus-visible, summary:focus-visible {
 .match-venue .sep { color: var(--gold-500); }
 
 /* ------------------------- تلميح ملخص المباراة ------------------------- */
-.match[data-summary] { cursor: help; }
+.match[data-summary], .match[data-preview] { cursor: help; }
 .summary-cue {
   display: inline-flex; align-items: center; gap: 4px; margin-inline-start: auto;
   color: var(--navy-700); font-weight: 700; font-size: .73rem;
@@ -864,6 +864,13 @@ textarea:focus-visible, summary:focus-visible {
   padding: 1px 8px; border-radius: 999px;
 }
 .summary-cue svg { color: var(--gold-600); }
+.preview-cue {
+  display: inline-flex; align-items: center; gap: 4px; margin-inline-start: auto;
+  color: var(--navy-700); font-weight: 700; font-size: .73rem;
+  background: rgba(229, 181, 66, .16); border: 1px solid rgba(229, 181, 66, .42);
+  padding: 1px 8px; border-radius: 999px;
+}
+.preview-cue svg { color: var(--gold-600); }
 
 .match-tip {
   position: fixed; z-index: 90;
@@ -892,7 +899,7 @@ textarea:focus-visible, summary:focus-visible {
 }
 .tip-sec + .tip-sec { margin-top: 9px; }
 .tip-sec-title { margin: 0 0 4px; color: var(--gold-600); font-weight: 800; font-size: .74rem; }
-.tip-line { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
+.tip-line { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding: 2px 0; }
 .tip-line + .tip-line { border-top: 1px dashed rgba(15, 36, 64, .08); }
 .tip-ico { flex: 0 0 auto; display: inline-flex; color: var(--navy-600); }
 .tip-ico-goal, .tip-ico-assist { color: var(--gold-600); }
@@ -918,6 +925,47 @@ textarea:focus-visible, summary:focus-visible {
   font-size: .7rem; font-weight: 800; color: var(--navy-800);
   background: rgba(30, 66, 118, .08); border: 1px solid rgba(30, 66, 118, .18);
   border-radius: 999px; padding: 1px 8px;
+}
+
+/* ------------------------ تلميح معاينة المباراة القادمة ------------------------ */
+.tip-rank {
+  flex: 0 0 auto; font-weight: 800; font-size: .72rem; color: #fff;
+  background: linear-gradient(180deg, var(--navy-600), var(--navy-800));
+  border-radius: 7px; padding: 1px 7px; unicode-bidi: bidi-override; direction: rtl;
+}
+.tip-form { display: inline-flex; gap: 3px; margin-inline-start: auto; direction: ltr; }
+.tip-form-pill {
+  width: 18px; height: 18px; border-radius: 5px; color: #fff;
+  font-size: .66rem; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.f-w { background: #1c7c46; }
+.f-d { background: #8a94a6; }
+.f-l { background: #c0392b; }
+.tip-vs {
+  flex: 0 0 auto; font-weight: 800; color: var(--navy-800);
+  background: rgba(15, 36, 64, .06); border-radius: 6px; padding: 0 6px;
+  unicode-bidi: bidi-override; direction: rtl;
+}
+.tip-min-date { min-width: 46px; }
+.tip-chip {
+  flex: 0 0 auto; font-size: .68rem; font-weight: 800; border-radius: 999px;
+  padding: 1px 7px; color: var(--navy-800);
+  background: rgba(30, 66, 118, .08); border: 1px solid rgba(30, 66, 118, .16);
+}
+.tip-chip-red { background: #f6d5d5; color: #8f1a1a; border-color: rgba(143, 26, 26, .3); }
+.tip-chip-yellow { background: #fdf1cf; color: #7a5b00; border-color: rgba(122, 91, 0, .3); }
+.tip-odds-bar {
+  display: flex; height: 8px; border-radius: 999px; overflow: hidden;
+  margin: 3px 0 4px; background: rgba(15, 36, 64, .08);
+}
+.tip-odds-bar > span { display: block; height: 100%; }
+.tip-odds-home { background: var(--gold-500); }
+.tip-odds-draw { background: #8a94a6; }
+.tip-odds-away { background: var(--navy-600); }
+.tip-odds-labels {
+  display: flex; justify-content: space-between; gap: 6px;
+  font-size: .7rem; font-weight: 700; color: var(--navy-800);
 }
 
 /* السلايدر وسط الساحة: إطار وتوهج احترافيان */

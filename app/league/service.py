@@ -20,10 +20,11 @@ import logging
 import re
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import current_app
+from flask import current_app, has_app_context
 from hijridate import Gregorian
 
 from app import AR_DAYS, AR_MONTHS, format_time_12
@@ -37,6 +38,7 @@ SCOREBOARD_URL = (
 SUMMARY_URL = (
     "https://site.api.espn.com/apis/site/v2/sports/soccer/ksa.1/summary?event={event}"
 )
+STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/soccer/ksa.1/standings"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0"
 CREST_DIR = Path(__file__).resolve().parent.parent / "static" / "img" / "teams"
 PLAYERS_AR_FILE = Path(__file__).resolve().parent / "players_ar.json"
@@ -56,6 +58,8 @@ HIJRI_MONTHS = [
 RESULTS_LIMIT = 6    # عدد النتائج المعروضة
 FIXTURES_LIMIT = 10  # عدد المباريات القادمة المعروضة
 FIXTURES_DAYS = 7    # نافذة «مباريات الأسبوع» بالأيام
+SUMMARY_WORKERS = 8  # توازي جلب ملخصات ESPN
+CARDS_LIMIT = 4      # أقصى عدد لاعبين بأوراق صفراء يُعرضون لكل فريق
 
 # أسماء الأندية بالعربية — المفتاح معرّف الفريق في ESPN
 TEAMS_AR = {
@@ -350,6 +354,44 @@ def fetch_summary(event_id: str) -> dict:
     return _http_get_json(SUMMARY_URL.format(event=event_id), timeout)
 
 
+def fetch_standings() -> dict:
+    """جدول ترتيب دوري روشن (كل الفرق) في نداء واحد.
+
+    **نقطة الاستبدال في الاختبارات:** يستبدلها ``monkeypatch`` فلا توجد شبكة."""
+    timeout = float(current_app.config["LEAGUE_TIMEOUT"])
+    return _http_get_json(STANDINGS_URL, timeout)
+
+
+def _fetch_many(event_ids: list[str]) -> dict:
+    """ملخصات عدة مباريات بالتوازي: ``{id: summary}`` مع تجاهل الفاشلة.
+
+    تعمل داخل وخارج سياق التطبيق: تفتح سياق Flask لكل عامل (سياق التطبيق لا
+    يُورَّث للخيوط)."""
+    if not event_ids:
+        return {}
+    app = current_app._get_current_object() if has_app_context() else None
+    collected: dict = {}
+
+    def one(event_id: str):
+        def do():
+            return event_id, fetch_summary(event_id)
+
+        try:
+            if app is None:
+                return do()
+            with app.app_context():
+                return do()
+        except Exception as exc:  # مباراة واحدة لا تُسقط البقية
+            log.debug("league.summary_failed id=%s err=%s", event_id, exc)
+            return event_id, None
+
+    with ThreadPoolExecutor(max_workers=SUMMARY_WORKERS) as pool:
+        for event_id, data in pool.map(one, event_ids):
+            if data:
+                collected[event_id] = data
+    return collected
+
+
 # ---------------------------------------------------------------- التطبيع
 
 def _crest_name(team_id: str) -> str | None:
@@ -467,6 +509,326 @@ def _translate_view(view: dict, names: dict) -> None:
         assist["player"] = arabic(assist.get("player"))
 
 
+# -------------------------------------------- معاينة المباريات القادمة
+
+def _cards_path() -> Path:
+    folder = current_app.config.get("LEAGUE_CACHE_DIR") or current_app.instance_path
+    return Path(folder) / "cards.json"
+
+
+def _read_cards(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_cards(path: Path, data: dict) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        log.debug("league.cards_write_failed err=%s", exc)
+
+
+def _card_table(all_results: list[dict]) -> dict:
+    """جدول بطاقات اللاعبين (أصفر/أحمر) من كل مباريات النافذة المنتهية.
+
+    مفتاح كل لاعب هو اسمه الإنجليزي، ويُترجم لاحقاً عند بناء المعاينة. يُحسب
+    مرّة واحدة ويُخزَّن حتى تتغيّر قائمة المباريات المنتهية (لا نُثقل ESPN).
+    لا يُعاد استخدام كاش لم يُبنَ بنجاح (علامة ``ok``)."""
+    ids = [str(m["id"]) for m in all_results]
+    empty = {"ok": True, "ids": [], "players": {}, "last_match": {}}
+    if not ids:
+        return empty
+    path = _cards_path()
+    cached = _read_cards(path)
+    if (
+        cached.get("ok")
+        and cached.get("ids") == ids
+        and isinstance(cached.get("players"), dict)
+    ):
+        return cached
+
+    last_match: dict = {}  # team_id ⇒ معرّف آخر مباراة منتهية له
+    for match in sorted(all_results, key=lambda m: m["kickoff"]):
+        for side in ("home", "away"):
+            last_match[str(match[side]["id"])] = str(match["id"])
+
+    players: dict = {}
+    for event_id, summary in _fetch_many(ids).items():
+        for event in summary.get("keyEvents") or []:
+            etype = str((event.get("type") or {}).get("type") or "")
+            kind = "red" if "red" in etype else ("yellow" if "yellow" in etype else "")
+            if not kind:
+                continue
+            team_id = str((event.get("team") or {}).get("id") or "")
+            for participant in event.get("participants") or []:
+                name = str((participant.get("athlete") or {}).get("displayName") or "").strip()
+                if not name:
+                    continue
+                record = players.setdefault(
+                    name, {"team_id": team_id, "yellow": 0, "red": 0, "red_matches": []}
+                )
+                record["team_id"] = team_id
+                if kind == "red":
+                    record["red"] += 1
+                    record["red_matches"].append(event_id)
+                else:
+                    record["yellow"] += 1
+
+    table = {"ok": True, "ids": ids, "players": players, "last_match": last_match}
+    _write_cards(path, table)
+    return table
+
+
+def _team_cards(team_id: str, table: dict) -> dict:
+    """الموقوفون (طرد في آخر مباراة) وأصحاب الإنذارات لفريق واحد."""
+    suspended: list[str] = []
+    yellows: list[dict] = []
+    last_match = (table.get("last_match") or {}).get(team_id)
+    for name, record in (table.get("players") or {}).items():
+        if str(record.get("team_id") or "") != team_id:
+            continue
+        if last_match and last_match in (record.get("red_matches") or []):
+            suspended.append(name)
+        if record.get("yellow"):
+            yellows.append({"name": name, "count": int(record["yellow"])})
+    yellows.sort(key=lambda item: item["count"], reverse=True)
+    return {"suspended": suspended, "yellow": yellows[:CARDS_LIMIT]}
+
+
+def _standings_map(data: dict) -> dict:
+    """``{team_id: {rank, points, played, record, gd}}`` من ردّ ترتيب ESPN
+    (يدعم ردّ الترتيب المستقل وردّ ملخص المباراة معاً)."""
+    entries: list = []
+    children = data.get("children")
+    if isinstance(children, list) and children:
+        entries = ((children[0].get("standings") or {}).get("entries")) or []
+    if not entries:
+        groups = (data.get("standings") or {}).get("groups")
+        if isinstance(groups, list) and groups:
+            entries = ((groups[0].get("standings") or {}).get("entries")) or []
+    out: dict = {}
+    for entry in entries:
+        team = entry.get("team")
+        team_id = str(entry.get("id") or "")
+        if not team_id and isinstance(team, dict):
+            team_id = str(team.get("id") or "")
+        if not team_id:
+            continue
+        stats = {s.get("name"): s.get("displayValue") for s in entry.get("stats") or []}
+        out[team_id] = {
+            "rank": stats.get("rank"),
+            "points": stats.get("points"),
+            "played": stats.get("gamesPlayed"),
+            "record": stats.get("overall"),
+            "gd": stats.get("pointDifferential"),
+        }
+    return out
+
+
+def _forms(summary: dict) -> dict:
+    """سلسلة النتائج لآخر مباريات كل فريق مثل ``WWLDL`` (الأحدث أولاً)."""
+    comp = ((summary.get("header") or {}).get("competitions") or [{}])[0]
+    out: dict = {}
+    for rival in comp.get("competitors") or []:
+        team_id = str((rival.get("team") or {}).get("id") or "")
+        if team_id:
+            out[team_id] = str(rival.get("form") or "")
+    return out
+
+
+def _leaders(summary: dict) -> dict:
+    """هداف وصانع أهداف كل فريق من ``leaders``."""
+    out: dict = {}
+    for block in summary.get("leaders") or []:
+        team_id = str((block.get("team") or {}).get("id") or "")
+        if not team_id:
+            continue
+        categories = {c.get("name"): c for c in block.get("leaders") or []}
+
+        def top(category_name: str):
+            leaders = (categories.get(category_name) or {}).get("leaders") or []
+            if not leaders:
+                return None
+            leader = leaders[0]
+            name = str((leader.get("athlete") or {}).get("displayName") or "").strip()
+            value = (leader.get("mainStat") or {}).get("value")
+            if not name or value in (None, ""):
+                return None
+            try:
+                value = int(float(value))
+            except (TypeError, ValueError):
+                value = str(value)
+            return {"name": name, "value": value}
+
+        out[team_id] = {"scorer": top("goalsLeaders"), "assist": top("assistsLeaders")}
+    return out
+
+
+def _short_date(value: str) -> str:
+    """تاريخ مختصر بالعربية: ``2026-08-28T18:00Z`` ⇒ «28 أغسطس»."""
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(RIYADH)
+    except (TypeError, ValueError):
+        return value
+    return f"{moment.day} {AR_MONTHS[moment.month - 1]}"
+
+
+def _h2h(series: list, team_names: dict) -> dict | None:
+    """آخر المواجهات المباشرة (حتى 3) مع الأسماء العربية والنتائج."""
+    if not series:
+        return None
+    block = series[0]
+    events: list[dict] = []
+    for event in (block.get("events") or [])[:3]:
+        rivals = {r.get("homeAway"): r for r in event.get("competitors") or []}
+        home, away = rivals.get("home") or {}, rivals.get("away") or {}
+        home_team = home.get("team") or {}
+        away_team = away.get("team") or {}
+        home_id = str(home_team.get("id") or "")
+        away_id = str(away_team.get("id") or "")
+        events.append({
+            "date": _short_date(str(event.get("date") or "")),
+            "home": team_names.get(home_id) or str(home_team.get("displayName") or ""),
+            "away": team_names.get(away_id) or str(away_team.get("displayName") or ""),
+            "home_score": "" if home.get("score") is None else str(home.get("score")),
+            "away_score": "" if away.get("score") is None else str(away.get("score")),
+        })
+    if not events:
+        return None
+    return {"events": events}
+
+
+def _probabilities(odds: list) -> dict | None:
+    """احتمالات الفوز من أسعار المُراهنة (تُطبَّع إلى 100%)."""
+    if not odds:
+        return None
+    book = odds[0]
+
+    def implied(money_line):
+        try:
+            money_line = float(money_line)
+        except (TypeError, ValueError):
+            return None
+        if money_line > 0:
+            return 100.0 / (money_line + 100.0)
+        return (-money_line) / ((-money_line) + 100.0)
+
+    home = implied((book.get("homeTeamOdds") or {}).get("moneyLine"))
+    away = implied((book.get("awayTeamOdds") or {}).get("moneyLine"))
+    draw = implied((book.get("drawOdds") or {}).get("moneyLine"))
+    if home is None or away is None:
+        return None
+    total = home + away + (draw or 0.0)
+    if total <= 0:
+        return None
+    out = {"home": round(home / total * 100), "away": round(away / total * 100)}
+    if draw is not None:
+        out["draw"] = round(draw / total * 100)
+    return out
+
+
+def _preview_view(match: dict, summary: dict, standings: dict,
+                  team_names: dict, cards_table: dict) -> dict:
+    """يبني معاينة المباراة القادمة من ملخص ESPN + الترتيب + جدول البطاقات."""
+    home_id = str(match["home"]["id"])
+    away_id = str(match["away"]["id"])
+    forms = _forms(summary) if summary else {}
+    leaders = _leaders(summary) if summary else {}
+    return {
+        "standings": {"home": standings.get(home_id), "away": standings.get(away_id)},
+        "form": {"home": forms.get(home_id, ""), "away": forms.get(away_id, "")},
+        "h2h": _h2h(summary.get("seasonseries") if summary else None, team_names),
+        "leaders": {"home": leaders.get(home_id), "away": leaders.get(away_id)},
+        "cards": {
+            "home": _team_cards(home_id, cards_table),
+            "away": _team_cards(away_id, cards_table),
+        },
+        "odds": _probabilities(summary.get("odds") if summary else None),
+    }
+
+
+def _preview_names(preview: dict) -> set:
+    """أسماء اللاعبين الواردة في معاينة (هدافون/صنّاع/بطاقات) لترجمتها."""
+    names: set = set()
+    for side in ("home", "away"):
+        leader = (preview.get("leaders") or {}).get(side) or {}
+        for key in ("scorer", "assist"):
+            item = leader.get(key)
+            if item and item.get("name"):
+                names.add(item["name"])
+        cards = (preview.get("cards") or {}).get(side) or {}
+        names.update(cards.get("suspended") or [])
+        for item in cards.get("yellow") or []:
+            if item.get("name"):
+                names.add(item["name"])
+    return {n for n in names if n}
+
+
+def _translate_preview(preview: dict, names: dict) -> None:
+    """يستبدل أسماء لاعبي المعاينة بنسخها العربية (في المكان)."""
+    def arabic(value):
+        return names.get(value, value) if value else value
+
+    for side in ("home", "away"):
+        leader = (preview.get("leaders") or {}).get(side) or {}
+        for key in ("scorer", "assist"):
+            item = leader.get(key)
+            if item and item.get("name"):
+                item["name"] = arabic(item["name"])
+        cards = (preview.get("cards") or {}).get(side) or {}
+        cards["suspended"] = [arabic(n) for n in cards.get("suspended") or []]
+        for item in cards.get("yellow") or []:
+            item["name"] = arabic(item.get("name"))
+
+
+def _attach_previews(payload: dict) -> dict:
+    """يلحق بكل مباراة قادمة معاينة: الترتيب، الحالة، المواجهات، الهدافون،
+    الغيابات/البطاقات، واحتمالات الفوز. تعذّر أي جزء لا يُسقط البقية."""
+    fixtures = payload.get("fixtures") or []
+    if not fixtures:
+        return payload
+    all_results = payload.get("all_results") or []
+
+    team_names: dict = {}
+    for match in list(all_results) + list(fixtures):
+        for side in ("home", "away"):
+            team_names[str(match[side]["id"])] = match[side]["name"]
+
+    try:
+        standings = _standings_map(fetch_standings())
+    except Exception as exc:
+        log.debug("league.standings_failed err=%s", exc)
+        standings = {}
+
+    try:
+        cards_table = _card_table(all_results)
+    except Exception as exc:
+        log.debug("league.cards_failed err=%s", exc)
+        cards_table = {"players": {}, "last_match": {}}
+
+    summaries = _fetch_many([str(m["id"]) for m in fixtures])
+
+    placed: list[tuple[dict, dict]] = []
+    names: set = set()
+    for match in fixtures:
+        preview = _preview_view(
+            match, summaries.get(str(match["id"])) or {}, standings, team_names, cards_table
+        )
+        placed.append((match, preview))
+        names |= _preview_names(preview)
+
+    translated = _arabic_names(names)
+    for match, preview in placed:
+        _translate_preview(preview, translated)
+        match["preview"] = preview
+    return payload
+
+
+
 def _hijri_label(day) -> str:
     """التاريخ الهجري (أم القرى) بالعربية: «28 ربيع الآخر 1448»."""
     hijri = Gregorian(day.year, day.month, day.day).to_hijri()
@@ -551,6 +913,7 @@ def build_payload(events: list[dict], now: datetime) -> dict:
             f"{format_time_12(now.hour, now.minute)}"
         ),
         "results": results[:RESULTS_LIMIT],
+        "all_results": results,  # كل المنتهية (لحساب البطاقات) لا المعروضة فقط
         "fixtures": fixtures[:FIXTURES_LIMIT],
     }
 
@@ -584,14 +947,15 @@ def _week_end(now: datetime) -> datetime:
 def _attach_summaries(payload: dict) -> dict:
     """يلحق ملخص الأحداث بالمباريات المنتهية المعروضة بعد ترجمة أسماء اللاعبين.
     فشل مباراة أو تعذّر الترجمة لا يُسقط البقية."""
+    results = payload.get("results") or []
+    summaries = _fetch_many([str(m["id"]) for m in results])
     placed: list[tuple[dict, dict]] = []
     names: set = set()
-    for match in payload.get("results") or []:
-        try:
-            view = _summary_view(fetch_summary(match["id"]))
-        except Exception as exc:
-            log.debug("league.summary_failed id=%s err=%s", match.get("id"), exc)
+    for match in results:
+        summary = summaries.get(str(match["id"]))
+        if not summary:
             continue
+        view = _summary_view(summary)
         if not view:
             continue
         placed.append((match, view))
@@ -610,6 +974,7 @@ def _refresh(old: dict | None, now: datetime) -> dict | None:
         events = fetch_scoreboards(now)
         payload = build_payload(events, now)
         _attach_summaries(payload)
+        _attach_previews(payload)
     except Exception as exc:
         log.warning("league.refresh_failed err=%s", exc)
         return old

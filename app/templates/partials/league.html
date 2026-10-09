@@ -13,10 +13,13 @@
 
 {% macro match_row(m, mode) %}
   {# mode: 'fixture' للمباراة القادمة، 'result' للنتيجة المنجزة.
-     المباريات المنتهية قد تحمل m.summary فيظهر تلميح عند المرور بالماوس. #}
+     المنتهية قد تحمل m.summary فيظهر ملخص الأحداث، والقادمة m.preview
+     فيظهر تلميح تمهيدي ذكي (ترتيب/حالة/مواجهات/هدافون/بطاقات/احتمالات). #}
   {% set summary = m.summary if mode == 'result' else none %}
+  {% set preview = m.preview if mode == 'fixture' else none %}
   <li class="match {{ 'is-done' if mode == 'result' else 'is-fixture' }}{% if m.status == 'live' %} is-live{% endif %}"
-      {%- if summary %} data-summary='{{ summary|tojson }}' tabindex="0"{% endif %}>
+      {%- if summary %} data-summary='{{ summary|tojson }}' tabindex="0"
+      {%- elif preview %} data-preview='{{ preview|tojson }}' tabindex="0"{% endif %}>
     <p class="match-when">
       <span class="match-day">{{ m.weekday }}</span>
       <time class="match-date">{{ m.date_greg }}</time>
@@ -29,6 +32,13 @@
             <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"></path>
             <circle cx="12" cy="12" r="2.6"></circle>
           </svg>الملخص
+        </span>
+      {% elif preview %}
+        <span class="preview-cue" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19V11M9.5 19V5M15 19v-6M20.5 19H3.5"></path>
+          </svg>معاينة
         </span>
       {% endif %}
       {% if m.status == 'live' %}

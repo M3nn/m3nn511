@@ -68,6 +68,7 @@ def league(app, tmp_path, monkeypatch):
     monkeypatch.setattr(service, "CREST_DIR", crests)
     monkeypatch.setattr(service, "fetch_scoreboards", lambda now: [])
     monkeypatch.setattr(service, "fetch_summary", lambda event_id: {})
+    monkeypatch.setattr(service, "fetch_standings", lambda: {})
     monkeypatch.setattr(service, "translate_names", lambda names: {})
     return app
 
@@ -328,7 +329,7 @@ def test_attach_summaries_links_events_to_finished_results_only(monkeypatch):
     monkeypatch.setattr(service, "fetch_summary", fake)
     service._attach_summaries(payload)
 
-    assert calls == ["1", "2"]  # المواعيد لا تُجلب لها ملخصات
+    assert sorted(calls) == ["1", "2"]  # المواعيد لا تُجلب لها ملخصات
     assert payload["results"][0]["summary"]["goals"][0]["team"] == "القادسية"
     assert "summary" not in payload["results"][1]
     assert "summary" not in payload["fixtures"][0]
@@ -383,5 +384,95 @@ def test_translate_view_replaces_player_names_in_place():
     assert view["goals"][0]["player"] == "تيجاني ريندرز"
     assert view["subs"][0]["in"] == "جوجا"
     assert view["subs"][0]["out"] == "Julien Domingues"  # غير موجود في الخريطة ⇒ يبقى
+
+
+def _fixture_summary() -> dict:
+    """ملخص مصغّر لمباراة قادمة: سجل الفريقين، الهدافون، المواجهات، والاحتمالات."""
+    return {
+        "header": {"competitions": [{"competitors": [
+            {"homeAway": "home", "form": "WWLDL", "team": {"id": "817"}},
+            {"homeAway": "away", "form": "LLDWW", "team": {"id": "22028"}},
+        ]}]},
+        "leaders": [
+            {"team": {"id": "817"}, "leaders": [
+                {"name": "goalsLeaders", "leaders": [
+                    {"athlete": {"displayName": "Cristiano Ronaldo"}, "mainStat": {"value": "7"}}]},
+                {"name": "assistsLeaders", "leaders": [
+                    {"athlete": {"displayName": "Sadio Mane"}, "mainStat": {"value": "3"}}]},
+            ]},
+            {"team": {"id": "22028"}, "leaders": []},
+        ],
+        "seasonseries": [{"events": [
+            {"date": "2026-08-18T18:00Z", "competitors": [
+                {"homeAway": "home", "score": "2", "team": {"id": "817"}},
+                {"homeAway": "away", "score": "1", "team": {"id": "22028"}},
+            ]},
+        ]}],
+        "odds": [{"homeTeamOdds": {"moneyLine": -150}, "awayTeamOdds": {"moneyLine": 300},
+                  "drawOdds": {"moneyLine": 250}}],
+    }
+
+
+def test_preview_view_builds_standings_form_h2h_leaders_and_odds():
+    match = {"id": "9",
+             "home": {"id": "817", "name": "النصر"},
+             "away": {"id": "22028", "name": "الخلود"}}
+    standings = {"817": {"rank": "2", "points": "19", "played": "8",
+                         "record": "6-1-1", "gd": "+13"}}
+    table = {"players": {"Adi": {"team_id": "22028", "yellow": 3, "red": 0, "red_matches": []}},
+             "last_match": {"22028": "8"}}
+
+    view = service._preview_view(match, _fixture_summary(), standings,
+                                 {"817": "النصر", "22028": "الخلود"}, table)
+
+    assert view["standings"]["home"]["rank"] == "2"
+    assert view["standings"]["away"] is None
+    assert view["form"]["home"] == "WWLDL"
+    assert view["h2h"]["events"][0]["home"] == "النصر"      # اسم عربي من الخريطة
+    assert view["h2h"]["events"][0]["away"] == "الخلود"
+    assert view["h2h"]["events"][0]["home_score"] == "2"
+    assert view["leaders"]["home"]["scorer"] == {"name": "Cristiano Ronaldo", "value": 7}
+    assert view["leaders"]["home"]["assist"] == {"name": "Sadio Mane", "value": 3}
+    assert view["cards"]["away"]["yellow"] == [{"name": "Adi", "count": 3}]
+    assert view["odds"]["home"] > view["odds"]["away"]      # المفضّل احتماله أعلى
+
+
+def test_card_table_flags_a_red_card_in_the_last_match(league, monkeypatch):
+    def fake(event_id: str) -> dict:
+        if event_id == "8":
+            return {"keyEvents": [{"type": {"type": "red-card"}, "team": {"id": "22028"},
+                                   "participants": [{"athlete": {"displayName": "Adi"}}]}]}
+        return {}
+
+    monkeypatch.setattr(service, "fetch_summary", fake)
+    results = [{"id": "8", "kickoff": "2026-10-01T18:00:00+03:00",
+                "home": {"id": "22028"}, "away": {"id": "817"}}]
+
+    table = service._card_table(results)
+
+    assert service._team_cards("22028", table)["suspended"] == ["Adi"]
+    assert service._team_cards("817", table)["suspended"] == []
+
+
+def test_upcoming_match_renders_hover_preview(league, monkeypatch):
+    now_utc = datetime.now(timezone.utc).replace(microsecond=0)
+    now_riyadh = now_utc.astimezone(service.RIYADH)
+    kick = service._week_end(now_riyadh) - timedelta(hours=1)
+    if kick <= now_riyadh:
+        kick = now_riyadh + timedelta(minutes=30)
+    events = [
+        _event("5", _iso(kick), "pre", "817", "22028",
+               stadium="Kingdom Arena", city="Riyadh"),
+    ]
+    monkeypatch.setattr(service, "fetch_scoreboards", lambda now: events)
+    monkeypatch.setattr(service, "fetch_summary", lambda event_id: _fixture_summary())
+    monkeypatch.setattr(service, "_seed_names", lambda: {})
+    monkeypatch.setattr(service, "translate_names", lambda names: {})
+
+    html = league.test_client().get("/").get_data(as_text=True)
+
+    assert "data-preview=" in html     # التلميح التمهيدي للمباراة القادمة
+    assert "preview-cue" in html       # إشارة «معاينة» على المباراة القادمة
+
 
 
