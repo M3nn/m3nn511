@@ -20,12 +20,18 @@ AR_MONTHS = [
 AR_DAYS = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 
 
+def format_time_12(hour: int, minute: int) -> str:
+    """وقت بنظام 12 ساعة بصيغة عربية: «9:05 ص» و«12:00 م»."""
+    period = "ص" if hour < 12 else "م"
+    return f"{hour % 12 or 12}:{minute:02d} {period}"
+
+
 def format_datetime(value: datetime | None, with_time: bool = True) -> str:
     """تاريخ عربي مقروء. يُستدعى من القوالب عبر المرشّح |ar."""
     if value is None:
         return ""
     text = f"{value.day} {AR_MONTHS[value.month - 1]} {value.year}"
-    return f"{text} - {value.hour:02d}:{value.minute:02d}" if with_time else text
+    return f"{text} - {format_time_12(value.hour, value.minute)}" if with_time else text
 
 
 def format_date(value) -> str:

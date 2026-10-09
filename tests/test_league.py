@@ -178,7 +178,7 @@ def test_build_payload_converts_time_venue_and_hijri_date():
     match = payload["fixtures"][0]
 
     assert match["status"] == "scheduled"
-    assert match["time"] == "21:00"           # 18:00 UTC = 21:00 بتوقيت الرياض
+    assert match["time"] == "9:00 م"            # 18:00 UTC = 21:00 بتوقيت الرياض (بنظام 12 ساعة)
     assert match["date_greg"] == "9 أكتوبر 2026"
     assert match["date_hijri"] == "28 ربيع الآخر 1448"
     assert match["weekday"] == "الجمعة"

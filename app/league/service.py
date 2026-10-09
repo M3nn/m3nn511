@@ -24,7 +24,7 @@ from pathlib import Path
 from flask import current_app
 from hijridate import Gregorian
 
-from app import AR_DAYS, AR_MONTHS
+from app import AR_DAYS, AR_MONTHS, format_time_12
 
 log = logging.getLogger("app.league")
 
@@ -260,7 +260,7 @@ def _match(event: dict) -> dict | None:
         "kickoff": kickoff.replace(microsecond=0).isoformat(),
         "weekday": AR_DAYS[kickoff.weekday()],
         "date_greg": f"{kickoff.day} {AR_MONTHS[kickoff.month - 1]} {kickoff.year}",
-        "time": f"{kickoff.hour:02d}:{kickoff.minute:02d}",
+        "time": format_time_12(kickoff.hour, kickoff.minute),
         "date_hijri": _hijri_label(kickoff.date()),
         "stadium": stadium,
         "city": city,
@@ -305,7 +305,7 @@ def build_payload(events: list[dict], now: datetime) -> dict:
         "fetched_at": now.replace(microsecond=0).isoformat(),
         "updated": (
             f"{now.day} {AR_MONTHS[now.month - 1]} {now.year} - "
-            f"{now.hour:02d}:{now.minute:02d}"
+            f"{format_time_12(now.hour, now.minute)}"
         ),
         "results": results[:RESULTS_LIMIT],
         "fixtures": fixtures[:FIXTURES_LIMIT],
