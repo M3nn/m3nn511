@@ -4,6 +4,12 @@
 قاعدة البيانات SQLite داخل `instance/app.db`، وكل الكاش يُكتب في `instance/`
 و`logs/` — **يجب أن يكونا قابلَي الكتابة** على الخادم.
 
+> **تنبيه — استضافات PHP فقط:** خدمات الاستضافة المشتركة التي تدعم PHP/MySQL
+> وحدهما (مثل InfinityFree المجاني على `dash.infinityfree.com`) **لا تشغّل** تطبيق
+> Flask هذا لأنها لا تدعم Python. تحتاج استضافة تدعم Python: cPanel مع «Python
+> App»، أو Render/PythonAnywhere، أو VPS. (باقة iFastNet المدفوعة تدعم Python/Node
+> حسب خططها.)
+
 > **قبل أي نشر حقيقي:**
 > 1. غيّر `SECRET_KEY` إلى قيمة طويلة عشوائية:
 >    `.venv\Scripts\python.exe -c "import secrets;print(secrets.token_urlsafe(48))"`
