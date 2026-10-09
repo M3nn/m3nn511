@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% from 'partials/pager.html' import pager %}
+{% block title %}لوحة التحرير — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <header class="page-head row">
+    <div>
+      <h1>لوحة التحرير</h1>
+      <p class="muted">
+        {{ counts.get('published', 0) }} منشور ·
+        {{ counts.get('draft', 0) }} مسودة ·
+        <a href="{{ url_for('editor.stats') }}">إحصاء</a>
+      </p>
+    </div>
+    <div class="head-actions">
+      {% if current_user.is_admin %}
+        <a class="btn ghost" href="{{ url_for('admin.categories') }}">التصنيفات</a>
+      {% endif %}
+      <a class="btn gold" href="{{ url_for('editor.new') }}">مقال جديد</a>
+    </div>
+  </header>
+
+  <nav class="filters">
+    <a class="{% if not status_filter %}on{% endif %}" href="{{ url_for('editor.index') }}">الكل</a>
+    {% for s in ArticleStatus %}
+      <a class="{% if status_filter == s.value %}on{% endif %}"
+         href="{{ url_for('editor.index', status=s.value) }}">
+        {{ ARTICLE_STATUS_LABELS[s] }} ({{ counts.get(s.value, 0) }})
+      </a>
+    {% endfor %}
+  </nav>
+
+  {% if page.items %}
+    {# نموذج واحد يحيط الجدول: مربعات الاختيار تُرسَل باسم ids.
+       زر «حذف الكل» = تحديد الكل ثم حذف المحدّد، مع تأكيد قبل التنفيذ. #}
+    <form method="post" action="{{ url_for('editor.delete_selected') }}"
+          id="bulk-delete-form" class="bulk-form"
+          onsubmit="return confirm('حذف المقالات المحدّدة (ومهامها المرتبطة إن فعّلت الخيار) نهائياً؟ لا يمكن التراجع.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <input type="hidden" name="page" value="{{ page.page }}">
+
+      <div class="bulk-bar">
+        <label class="bulk-all">
+          <input type="checkbox" id="select-all"> تحديد الكل / إلغاء الكل
+        </label>
+        <span class="muted small" id="sel-count">لم تختر أي مقالة</span>
+        {% if current_user.is_admin %}
+          <label class="danger-opt">
+            <input type="checkbox" name="delete_tasks" value="1">
+            احذف المهام المرتبطة أيضاً
+          </label>
+        {% endif %}
+        <button class="mini danger" type="submit" id="bulk-delete-btn" disabled>حذف المحدّد</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="col-check">اختيار</th>
+              <th>العنوان</th><th>التصنيف</th><th>الحالة</th><th>المؤلف</th><th>آخر تعديل</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in page.items %}
+              <tr>
+                <td class="col-check">
+                  <input type="checkbox" name="ids" value="{{ a.id }}"
+                         aria-label="تحديد «{{ a.title }}»">
+                </td>
+                <td>
+                  <a href="{{ url_for('editor.edit', article_id=a.id) }}">{{ a.title }}</a>
+                  <span class="muted small">{% if a.summary %}· له ملخص{% else %}· بلا ملخص{% endif %}</span>
+                </td>
+                <td>{{ a.category.name if a.category else '—' }}</td>
+                <td><span class="badge s-{{ a.status.value }}">{{ a.status_label }}</span></td>
+                <td>{{ a.author.display_name if a.author else '—' }}</td>
+                <td><time>{{ a.updated_at|ar(false) }}</time></td>
+                <td class="t-actions">
+                  <a class="mini" href="{{ url_for('editor.edit', article_id=a.id) }}">تحرير</a>
+                  {% if a.is_published %}
+                    <a class="mini" href="{{ url_for('news.article', slug=a.slug) }}">معاينة</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+
+    {% set extra = {} %}
+    {% if status_filter %}{% set _ = extra.update({'status': status_filter}) %}{% endif %}
+    {{ pager(page, 'editor.index', extra) }}
+  {% else %}
+    <p class="empty">لا توجد مقالات. ابدأ بـ <a href="{{ url_for('editor.new') }}">مقال جديد</a>.</p>
+  {% endif %}
+
+  {% if page.items %}
+    <script>
+      (function () {
+        var all = document.getElementById('select-all');
+        var boxes = Array.prototype.slice.call(document.querySelectorAll('input[name="ids"]'));
+        var counter = document.getElementById('sel-count');
+        var delBtn = document.getElementById('bulk-delete-btn');
+
+        function refresh() {
+          var checked = boxes.filter(function (b) { return b.checked; });
+          counter.textContent = checked.length
+            ? 'محدّد: ' + checked.length + ' من ' + boxes.length
+            : 'لم تختر أي مقالة';
+          delBtn.disabled = checked.length === 0;
+          all.checked = checked.length === boxes.length && boxes.length > 0;
+          all.indeterminate = checked.length > 0 && checked.length < boxes.length;
+        }
+
+        // اختيار الكل / إلغاؤه بنقرة واحدة
+        all.addEventListener('change', function () {
+          boxes.forEach(function (b) { b.checked = all.checked; });
+          refresh();
+        });
+        boxes.forEach(function (b) { b.addEventListener('change', refresh); });
+        refresh();
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

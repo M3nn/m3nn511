@@ -1,0 +1,33 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# الأسرار — لا تُرفع أبداً
+.env
+.env.local
+
+# المخرجات المحلية
+instance/
+logs/
+*.db
+*.sqlite3
+
+# أدوات تحقق مؤقتة
+check_*.py
+
+# بيئات بايثون التالفة/المؤقتة
+.venv*/
+
+# ملفات تصميم وتصحيح مؤقتة (غير مطلوبة في المستودع)
+c.txt
+check.html
+check_final.html
+check_*.html
+copy_favicon.py
+css_check*.css
+font_preview.html
+login.html
+login2.html
+login3.html
+login_debug.txt

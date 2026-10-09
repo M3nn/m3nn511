@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}منصة أخبار النصر{% endblock %}</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@700;800&family=Cairo:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=28">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="{{ url_for('news.home') }}">
+        <img class="brand-mark" src="{{ url_for('static', filename='img/nassr-logo.png') }}" alt="النصر السعودي" width="716" height="960">
+        <span class="brand-text">
+          <span class="brand-lead">منصة</span>
+          <span class="brand-sub">أخبار النصر</span>
+        </span>
+      </a>
+
+
+      <nav class="usernav">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('tasks.index') }}">المهام</a>
+          {% if current_user.can_edit_articles %}
+            <a href="{{ url_for('editor.index') }}">التحرير</a>
+          {% endif %}
+          {% if current_user.is_admin %}
+            <a href="{{ url_for('admin.categories') }}">التصنيفات</a>
+          {% endif %}
+          <a href="{{ url_for('tasks.suggest') }}">اقتراح مهام</a>
+          <span class="who">{{ current_user.display_name }}<em>{{ current_user.role_label }}</em></span>
+          <form action="{{ url_for('auth.logout') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="linklike" type="submit">خروج</button>
+          </form>
+        {% else %}
+          <a class="cta" href="{{ url_for('auth.login') }}">دخول الموظفين</a>
+        {% endif %}
+      </nav>
+    </div>
+
+    <div class="cats">
+      <div class="wrap cats-inner">
+        <a href="{{ url_for('news.home') }}">الرئيسية</a>
+        {% for c in nav_categories %}
+          <a href="{{ url_for('news.category', slug=c.slug) }}">{{ c.name }}</a>
+        {% endfor %}
+                <form class="searchbar" action="{{ url_for('news.search') }}" method="get" role="search"><input type="search" name="q" value="{{ query|default('') }}" placeholder="ابحث" aria-label="بحث"><button class="search-go" type="submit" aria-label="بحث"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5 21 21"></path></svg></button></form>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap" id="flash-area">
+    {% include 'partials/flash.html' %}
+  </div>
+
+  <main class="wrap main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <p>جميع الحقوق محفوظة لـ منصة أخبار النصر @ 2020-2026</p>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+        <p class="muted">
+          {% if ai_ready %}خدمة الذكاء الاصطناعي مفعّلة{% else %}الذكاء الاصطناعي غير مفعّل{% endif %}
+          · {{ today_label }}
+        </p>
+      {% endif %}
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% from 'partials/article_card.html' import article_card %}
+{% from 'partials/see_more.html' import see_more %}
+{% block title %}{{ category.name }} — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <h1>{{ category.name }}</h1>
+    <p class="muted">{{ page.total }} خبر منشور في هذا التصنيف</p>
+  </header>
+
+  {% if page.items %}
+    <div class="grid" id="list-grid">
+      {% for a in page.items %}{{ article_card(a, 'md') }}{% endfor %}
+    </div>
+    <div id="see-more-slot">{{ see_more(page, 'news.category', {'slug': category.slug}) }}</div>
+  {% else %}
+    <p class="empty">لا توجد أخبار في هذا التصنيف بعد.</p>
+  {% endif %}
+{% endblock %}

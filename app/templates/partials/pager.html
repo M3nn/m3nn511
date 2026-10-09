@@ -1,0 +1,26 @@
+{# ترقيم الصفحات — الروابط تحافظ على الفلاتر الحالية عبر معاملات extra #}
+{% macro pager(page, endpoint, extra={}) %}
+  {% if page.pages > 1 %}
+    <nav class="pager" aria-label="ترقيم الصفحات">
+      {% if page.has_prev %}
+        <a href="{{ url_for(endpoint, page=page.prev_num, **extra) }}" rel="prev">السابق</a>
+      {% else %}
+        <span class="off">السابق</span>
+      {% endif %}
+
+      {% for n in page.numbers %}
+        {% if n == page.page %}
+          <span class="on" aria-current="page">{{ n }}</span>
+        {% else %}
+          <a href="{{ url_for(endpoint, page=n, **extra) }}">{{ n }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page.has_next %}
+        <a href="{{ url_for(endpoint, page=page.next_num, **extra) }}" rel="next">التالي</a>
+      {% else %}
+        <span class="off">التالي</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endmacro %}

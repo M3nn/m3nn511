@@ -1,0 +1,25 @@
+{# بطاقة خبر — تُستخدم في الرئيسية والصفحات والبحث #}
+{% macro article_card(a, size='md') %}
+  <article class="card card-{{ size }}">
+    <a class="card-link" href="{{ url_for('news.article', slug=a.slug) }}">
+      {% if a.cover_image_url %}
+        <img class="card-img" src="{{ a.cover_image_url }}" alt="{{ a.title }}" loading="lazy">
+      {% endif %}
+      <div class="card-body">
+        {% if a.category %}
+          <span class="tag">{{ a.category.name }}</span>
+        {% endif %}
+        <h3 class="card-title">{{ a.title }}</h3>
+        {% if a.summary %}
+          <p class="card-sum">{{ a.summary }}</p>
+        {% elif size != 'sm' %}
+          <p class="card-sum">{{ a.body[:130] }}{% if a.body|length > 130 %}…{% endif %}</p>
+        {% endif %}
+        <p class="card-meta">
+          {% if a.author %}<span>{{ a.author.display_name }}</span>{% endif %}
+          {% if a.published_at %}<time>{{ a.published_at|ar(false) }}</time>{% endif %}
+        </p>
+      </div>
+    </a>
+  </article>
+{% endmacro %}

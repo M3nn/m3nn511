@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}خطأ {{ code }} — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <div class="narrow error-page">
+    <p class="err-code">{{ code }}</p>
+    <p class="err-msg">{{ message }}</p>
+    <p><a class="btn gold" href="{{ url_for('news.home') }}">العودة للرئيسية</a></p>
+  </div>
+{% endblock %}

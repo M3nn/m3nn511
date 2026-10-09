@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}اقتراح مهام بالذكاء الاصطناعي — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <h1>اقتراح مهام تحريرية</h1>
+    <p class="muted">اكتب وصفاً لما نريد تغطيته، ويقترح النموذج قائمة مهام قابلة للتنفيذ.</p>
+  </header>
+
+  <div class="narrow">
+    {% if not ai_ready %}
+      <p class="alert alert-warn">
+        خدمة الذكاء الاصطناعي غير مهيّأة. أضف <code>OPENAI_API_KEY</code> في ملف
+        <code>.env</code> ثم أعد تشغيل الخادم.
+      </p>
+    {% endif %}
+
+    <form method="post" class="card form-card"
+          hx-post="{{ url_for('tasks.suggest') }}"
+          hx-target="#ai-suggest-result"
+          hx-swap="innerHTML"
+          hx-indicator="#suggest-wait">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label for="brief">وصف المطلوب</label>
+        <textarea id="brief" name="brief" rows="7" maxlength="4000" required
+                  placeholder="مثال: غداً مباراة الديربي، نحتاج تقريراً قبل المباراة، وتغطية لتصريحات المدرب، ورصد لأرقام التحويل والدفاع.">{{ brief }}</textarea>
+      </div>
+      <button class="btn gold" type="submit"{% if not ai_ready %} disabled{% endif %}>اقترح المهام</button>
+      <span class="ai-wait" id="suggest-wait" hx-indicator>
+        <span class="dot"></span> جارٍ التحليل…
+      </span>
+    </form>
+
+    <div class="result-box">
+      {% include 'partials/task_suggestions.html' %}
+    </div>
+  </div>
+{% endblock %}

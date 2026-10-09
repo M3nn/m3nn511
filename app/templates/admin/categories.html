@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}التصنيفات — الإدارة{% endblock %}
+
+{% block content %}
+  <header class="page-head row">
+    <div>
+      <h1>التصنيفات</h1>
+      <p class="muted">{{ categories|length }} تصنيف · تحكم كامل: إضافة، تحرير، ترتيب، حذف.</p>
+    </div>
+    <a class="btn gold" href="{{ url_for('admin.category_new') }}">تصنيف جديد</a>
+  </header>
+
+  {% if categories %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>الاسم</th>
+            <th>الرابط</th>
+            <th>الترتيب</th>
+            <th>عدد الأخبار</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in categories %}
+            <tr>
+              <td><a href="{{ url_for('news.category', slug=c.slug) }}">{{ c.name }}</a></td>
+              <td class="muted small" dir="ltr">{{ c.slug }}</td>
+              <td>{{ c.sort_order }}</td>
+              <td>{{ counts.get(c.id, 0) }}</td>
+              <td class="t-actions">
+                <a class="mini" href="{{ url_for('admin.category_edit', category_id=c.id) }}">تحرير</a>
+                <a class="mini" href="{{ url_for('news.category', slug=c.slug) }}"
+                   target="_blank" rel="noopener">معاينة</a>
+                <form action="{{ url_for('admin.category_delete', category_id=c.id) }}"
+                      method="post" class="inline"
+                      onsubmit="return confirm('حذف التصنيف «{{ c.name }}»؟ لن تُحذف الأخبار، بل تصبح بلا تصنيف.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="mini danger" type="submit">حذف</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty">لا توجد تصنيفات. ابدأ بـ
+      <a href="{{ url_for('admin.category_new') }}">تصنيف جديد</a>.</p>
+  {% endif %}
+{% endblock %}

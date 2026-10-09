@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% from 'partials/article_card.html' import article_card %}
+{% block title %}{{ article.title }} — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <article class="post">
+    <header class="post-head">
+      {% if article.category %}
+        <a class="tag" href="{{ url_for('news.category', slug=article.category.slug) }}">{{ article.category.name }}</a>
+      {% endif %}
+      <h1>{{ article.title }}</h1>
+      <p class="post-meta">
+        {% if article.author %}<span>بقلم {{ article.author.display_name }}</span>{% endif %}
+        {% if article.published_at %}<time>{{ article.published_at|ar }}</time>{% endif %}
+      </p>
+    </header>
+
+    {% if article.cover_image_url %}
+      <img class="post-img" src="{{ article.cover_image_url }}" alt="{{ article.title }}">
+    {% endif %}
+
+    {% if article.summary %}
+      <p class="post-summary">{{ article.summary }}</p>
+    {% endif %}
+
+    <div class="post-body">
+      {% for p in article.body_paragraphs %}
+        <p>{{ p }}</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  {% if related %}
+    <section class="block">
+      <h2 class="block-title">أخبار ذات صلة</h2>
+      <div class="grid">
+        {% for a in related %}{{ article_card(a, 'sm') }}{% endfor %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

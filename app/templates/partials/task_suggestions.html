@@ -1,0 +1,20 @@
+{# نتيجة AI-2: قائمة عناوين مقترحة، لكل واحد زر «أضف» يفتح نموذج المهمة #}
+<div id="ai-suggest-result">
+  {% if error %}
+    <p class="alert alert-error">{{ error }}</p>
+  {% elif suggestions %}
+    <ul class="suggest-list">
+      {% for s in suggestions %}
+        <li>
+          <span class="badge b-{{ s.priority }}">{{ PRIORITY_LABELS[s.priority] }}</span>
+          <span class="s-title">{{ s.title }}</span>
+          <a class="mini gold"
+             href="{{ url_for('tasks.new', title=s.title, priority=s.priority) }}">أضف</a>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="muted small">اضغط «أضف» لفتح نموذج المهمة مع العنوان جاهزاً، ثم راجعه واحفظ.</p>
+  {% elif brief %}
+    <p class="muted">لم تصل اقتراحات صالحة. جرّب كتابة وصف أوضح.</p>
+  {% endif %}
+</div>

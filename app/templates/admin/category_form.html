@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'تحرير تصنيف' if category else 'تصنيف جديد' }} — الإدارة{% endblock %}
+
+{% block content %}
+  <header class="page-head row">
+    <div>
+      <h1>{{ 'تحرير التصنيف' if category else 'تصنيف جديد' }}</h1>
+      {% if category %}
+        <p class="muted">#{{ category.id }} · <span dir="ltr">{{ category.slug }}</span>
+          · {{ category.articles|length }} خبر</p>
+      {% endif %}
+    </div>
+    <a class="btn ghost" href="{{ url_for('admin.categories') }}">رجوع للقائمة</a>
+  </header>
+
+  <form method="post" class="narrow">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="field">
+      {{ form.name.label }}
+      {{ form.name() }}
+      {% for e in form.name.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="field">
+      {{ form.sort_order.label }}
+      {{ form.sort_order() }}
+      <p class="muted small">الأصغر يظهر أولاً في شريط التصنيفات والقوائم.</p>
+      {% for e in form.sort_order.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    </div>
+
+    <button class="btn gold" type="submit">{{ form.submit.label.text }}</button>
+  </form>
+
+  {% if category %}
+    <form method="post" action="{{ url_for('admin.category_delete', category_id=category.id) }}"
+          class="narrow"
+          onsubmit="return confirm('حذف التصنيف «{{ category.name }}»؟ الأخبار ستبقى بلا تصنيف.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn danger" type="submit">حذف التصنيف</button>
+    </form>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% from 'partials/article_card.html' import article_card %}
+{% from 'partials/see_more.html' import see_more %}
+{% block title %}{% if query %}نتائج البحث عن {{ query }}{% else %}البحث{% endif %} — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <h1>البحث</h1>
+    {% if query %}
+      <p class="muted">{{ page.total }} نتيجة عن «{{ query }}»</p>
+    {% else %}
+      <p class="muted">اكتب كلمة في الحقل أعلاه للبحث في العناوين والمتن.</p>
+    {% endif %}
+  </header>
+
+  {% if query %}
+    {% if page.items %}
+      <div class="grid" id="list-grid">
+        {% for a in page.items %}{{ article_card(a, 'md') }}{% endfor %}
+      </div>
+      <div id="see-more-slot">{{ see_more(page, 'news.search', {'q': query}) }}</div>
+    {% else %}
+      <p class="empty">لا نتائج مطابقة. جرّب كلمة أقصر.</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

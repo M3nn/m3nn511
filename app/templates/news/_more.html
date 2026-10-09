@@ -1,0 +1,5 @@
+{# استجابة «شاهد المزيد» — بطاقات فقط + استبدال زر المزيد خارج النطاق (OOB) #}
+{% from 'partials/article_card.html' import article_card %}
+{% from 'partials/see_more.html' import see_more %}
+{% for a in items %}{{ article_card(a, 'md') }}{% endfor %}
+<div id="see-more-slot" hx-swap-oob="true">{{ see_more(page, endpoint, extra) }}</div>

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'تعديل' if article else 'مقال جديد' }} — لوحة التحرير{% endblock %}
+
+{% block content %}
+  <header class="page-head row">
+    <div>
+      <h1>{{ 'تعديل مقال' if article else 'مقال جديد' }}</h1>
+      {% if article %}
+        <p class="muted">
+          #{{ article.id }} · {{ article.status_label }}
+          {% if article.is_published %}
+            · <a href="{{ url_for('news.article', slug=article.slug) }}">معاينة الرابط العام</a>
+          {% endif %}
+        </p>
+      {% endif %}
+    </div>
+    <a class="btn ghost" href="{{ url_for('editor.index') }}">رجوع للقائمة</a>
+  </header>
+
+  {# لا نموذج داخل نموذج: النموذج الرئيس يغطّي الحقول فقط، وينتهي قبل
+     أزرار النشر والحذف لأن المتصفّح يتجاهل <form> المتداخل فيُعطّلها. #}
+  <div class="editor-form">
+    <form method="post" id="article-form" class="editor-main">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="field">
+        {{ form.title.label }}
+        {{ form.title() }}
+        {% for e in form.title.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+
+      <div class="field">
+        {{ form.body.label }}
+        {{ form.body() }}
+        <p class="muted small">افصل بين الفقرات بسطر فارغ. الحد الأدنى 80 حرفاً.</p>
+        {% for e in form.body.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+    </form>
+
+    <aside class="editor-side">
+      <div class="side-box">
+        <h3>الملخص</h3>
+        {% if article %}
+          {% include 'partials/ai_summary.html' %}
+        {% else %}
+          <p class="muted small">احفظ المقال أولاً، ثم استخدم زر التلخيص.</p>
+        {% endif %}
+      </div>
+
+      <div class="side-box">
+        <h3>التصنيف</h3>
+        {{ form.category_id(form='article-form') }}
+        {% for e in form.category_id.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+
+      <div class="side-box">
+        <h3>صورة الغلاف</h3>
+        {{ form.cover_image_url(form='article-form') }}
+        {% for e in form.cover_image_url.errors %}<p class="err">{{ e }}</p>{% endfor %}
+        {% if article and article.cover_image_url %}
+          <img class="side-preview" src="{{ article.cover_image_url }}" alt="">
+        {% endif %}
+      </div>
+
+      <div class="side-box">
+        <h3>الحالة</h3>
+        {{ form.status(form='article-form') }}
+        {% for e in form.status.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+
+      <button class="btn gold block" type="submit" form="article-form">
+        {{ form.submit.label.text }}
+      </button>
+
+      {% if article %}
+        <div class="side-actions">
+          <form action="{{ url_for('editor.publish', article_id=article.id) }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn ghost block" type="submit">
+              {{ 'إرجاع إلى المسودات' if article.is_published else 'نشر الخبر' }}
+            </button>
+          </form>
+          <form action="{{ url_for('editor.delete', article_id=article.id) }}" method="post"
+                onsubmit="return confirm('حذف الخبر نهائياً؟ لا يمكن التراجع.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if current_user.is_admin and article.tasks %}
+              <label class="danger-opt">
+                <input type="checkbox" name="delete_tasks" value="1">
+                احذف أيضاً {{ article.tasks|length }} مهمة مرتبطة
+              </label>
+            {% endif %}
+            <button class="btn danger block" type="submit">حذف الخبر</button>
+          </form>
+        </div>
+      {% endif %}
+    </aside>
+  </div>
+{% endblock %}

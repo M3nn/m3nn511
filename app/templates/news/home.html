@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% from 'partials/article_card.html' import article_card %}
+{% from 'partials/see_more.html' import see_more %}
+{% from 'partials/league.html' import match_row %}
+{% block title %}الرئيسية — منصة أخبار النصر{% endblock %}
+
+{# السلايدر الاحترافي (الخبر الرئيسي): يمرّ على كل أخبار «أحدث الأخبار» بصور الأغلفة مع انتقال متقاطع سلس #}
+{% macro slider_block(slides) %}
+  <section class="hero" aria-roledescription="carousel" aria-label="آخر الأخبار">
+    <div class="news-slider">
+      {% for s in slides %}
+        <a class="slider-slide{% if loop.first %} is-active{% endif %}"
+           href="{{ url_for('news.article', slug=s.slug) }}">
+          {% if s.cover_image_url %}
+            <img class="slider-img" src="{{ s.cover_image_url }}" alt="{{ s.title }}"
+                 {% if loop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+          {% endif %}
+          <span class="hero-veil" aria-hidden="true"></span>
+          <div class="hero-body slider-body">
+            {% if s.category %}<span class="tag">{{ s.category.name }}</span>{% endif %}
+            <h2 class="hero-title">{{ s.title }}</h2>
+            {% if s.summary %}
+              <p class="hero-sum">{{ s.summary }}</p>
+            {% elif s.body %}
+              <p class="hero-sum">{{ s.body[:170] }}{% if s.body|length > 170 %}…{% endif %}</p>
+            {% endif %}
+            <p class="hero-meta">
+              {% if s.author %}<span>{{ s.author.display_name }}</span>{% endif %}
+              {% if s.published_at %}<time>{{ s.published_at|ar(false) }}</time>{% endif %}
+            </p>
+          </div>
+        </a>
+      {% endfor %}
+
+      <button class="slider-arrow slider-prev" type="button" aria-label="الخبر السابق">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      </button>
+      <button class="slider-arrow slider-next" type="button" aria-label="الخبر التالي">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </button>
+      <div class="slider-dots" aria-label="التنقل بين أخبار السلايدر"></div>
+    </div>
+  </section>
+{% endmacro %}
+
+{# أيقونة SVG لكل تصنيف حسب اسمه #}
+{% macro cat_icon(name) %}
+  {%- if 'قدم' in name -%}
+    <svg class="cat-ico-svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"></circle><path d="M12 8.9 15.3 10.6 14.4 14.2 9.6 14.2 8.7 10.6Z"></path><path d="M12 8.9V2.9M15.3 10.6l5.6-1.4M14.4 14.2l3.5 4.6M9.6 14.2l-3.5 4.6M8.7 10.6 3.1 9.2"></path></svg>
+  {%- elif 'سلة' in name -%}
+    <svg class="cat-ico-svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"></circle><path d="M12 2.5v19"></path><path d="M4.7 8.1a9.5 9.5 0 0 0 14.6 7.8M19.3 8.1a9.5 9.5 0 0 0-14.6 7.8"></path></svg>
+  {%- elif 'انتقال' in name -%}
+    <svg class="cat-ico-svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
+  {%- elif 'تحليل' in name -%}
+    <svg class="cat-ico-svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7 20v-7M12 20V6M17 20v-10"></path></svg>
+  {%- else -%}
+    <svg class="cat-ico-svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+  {%- endif -%}
+{% endmacro %}
+
+{% block content %}
+  {# شريط الأخبار المتحرك: بعرض الشاشة كاملاً تحت الهيدر وفوق «دوري روشن» #}
+  {% set ticker_items = grid or ([hero] if hero else []) %}
+  {% if ticker_items %}
+    <section class="ticker-band" aria-label="شريط الأخبار المتحرك">
+      <span class="ticker-label"><span class="ticker-dot" aria-hidden="true"></span>آخر الأخبار</span>
+      <div class="ticker-viewport">
+        <div class="ticker-track">
+          <div class="ticker-group">
+            {% for t in ticker_items %}
+              <a class="ticker-item" href="{{ url_for('news.article', slug=t.slug) }}">{{ t.title }}</a>
+            {% endfor %}
+          </div>
+          <div class="ticker-group" aria-hidden="true">
+            {% for t in ticker_items %}
+              <a class="ticker-item" href="{{ url_for('news.article', slug=t.slug) }}" tabindex="-1">{{ t.title }}</a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {# ساحة الدوري — تحت الهيدر مباشرة: مباريات هذا الأسبوع يمين السلايدر، وآخر النتائج يساره #}
+  {% if league and (league.fixtures or league.results) %}
+    <section class="block arena" aria-label="دوري روشن السعودي">
+      <div class="arena-head">
+        <h2 class="block-title arena-title">دوري روشن السعودي</h2>
+        <span class="league-updated"><span class="updated-dot" aria-hidden="true"></span>آخر تحديث: {{ league.updated }}</span>
+      </div>
+
+      <div class="arena-grid">
+        {% if league.fixtures %}
+          <aside class="league-col arena-side arena-side-right" aria-label="مباريات هذا الأسبوع">
+            <h3 class="league-sub"><svg class="sub-ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M3 9h18"></path></svg>مباريات هذا الأسبوع</h3>
+            <ul class="match-list">
+              {% for m in league.fixtures %}{{ match_row(m, 'fixture') }}{% endfor %}
+            </ul>
+          </aside>
+        {% endif %}
+
+        <div class="arena-center">
+          {% set slides = ([hero] if hero else []) + (grid or []) %}
+          {% if slides %}{{ slider_block(slides) }}{% endif %}
+        </div>
+
+        {% if league.results %}
+          <aside class="league-col arena-side arena-side-left" aria-label="آخر النتائج">
+            <h3 class="league-sub"><svg class="sub-ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>آخر النتائج</h3>
+            <ul class="match-list">
+              {% for m in league.results %}{{ match_row(m, 'result') }}{% endfor %}
+            </ul>
+          </aside>
+        {% endif %}
+      </div>
+    </section>
+  {% else %}
+    {% set slides = ([hero] if hero else []) + (grid or []) %}
+    {% if slides %}
+      {{ slider_block(slides) }}
+    {% else %}
+      {# تعليمة الإعداد الداخلي: للمدير وحده؛ الزائر والعضو لا يريانها. #}
+      {% if current_user.is_authenticated and current_user.is_admin %}
+        <p class="empty">لا توجد أخبار منشورة بعد. شغّل الأمر <code>flask seed</code> لتعبئة بيانات تجريبية.</p>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+
+  {# أحدث الأخبار: كما كانت قبل تغيير أماكن الدوري — شبكة بعرض كامل #}
+  {% if grid or page.has_next %}
+    <section class="block news-band">
+      <h2 class="block-title">أحدث الأخبار</h2>
+      <div class="grid" id="list-grid">
+        {% for a in grid %}{{ article_card(a, 'md') }}{% endfor %}
+      </div>
+      <div id="see-more-slot">{{ see_more(page, 'news.home') }}</div>
+    </section>
+  {% endif %}
+
+  {% if categories %}
+    <section class="block">
+      <h2 class="block-title">التصنيفات</h2>
+      <div class="cat-grid">
+        {% for c in categories %}
+          <a class="cat-card" href="{{ url_for('news.category', slug=c.slug) }}">
+            <span class="cat-ico">{{ cat_icon(c.name) }}</span>
+            <span class="cat-meta">
+              <span class="cat-name">{{ c.name }}</span>
+              <span class="cat-count">
+                {%- set n = counts.get(c.id, 0) -%}
+                {%- if n == 0 -%}لا أخبار{%- elif n == 1 -%}{{ n }} خبر{%- else -%}{{ n }} أخبار{%- endif -%}
+              </span>
+            </span>
+            <svg class="cat-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m11 18-6-6 6-6"></path></svg>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <script src="{{ url_for('static', filename='js/slider.js') }}?v=18" defer></script>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% from 'partials/task_row.html' import task_row %}
+{% from 'partials/pager.html' import pager %}
+{% block title %}المهام التحريرية — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <header class="page-head row">
+    <div>
+      <h1>المهام التحريرية</h1>
+      <p class="muted">
+        {{ page.total }} مهمة
+        {% if not can_manage %} · مهامك فقط{% endif %}
+      </p>
+    </div>
+    <div class="head-actions">
+      <a class="btn ghost" href="{{ url_for('tasks.suggest') }}">اقتراح مهام بالذكاء الاصطناعي</a>
+      <a class="btn gold" href="{{ url_for('tasks.new') }}">مهمة جديدة</a>
+    </div>
+  </header>
+
+  <nav class="filters">
+    <a class="{% if not status_filter and not mine_only %}on{% endif %}" href="{{ url_for('tasks.index') }}">الكل</a>
+    {% for s in TaskStatus %}
+      <a class="{% if status_filter == s.value %}on{% endif %}"
+         href="{{ url_for('tasks.index', status=s.value) }}">
+        {{ TASK_STATUS_LABELS[s] }} ({{ counts.get(s.value, 0) }})
+      </a>
+    {% endfor %}
+    {% if can_manage %}
+      <a class="sep{% if mine_only %} on{% endif %}" href="{{ url_for('tasks.index', mine=1) }}">مهامي فقط</a>
+    {% endif %}
+  </nav>
+
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table tasks-table">
+        <thead>
+          <tr>
+            <th>المهمة</th><th>الأولوية</th><th>الاستحقاق</th><th>الحالة</th>
+            {% if can_manage %}<th>المكلف</th>{% endif %}<th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in page.items %}{{ task_row(t, can_manage) }}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% set extra = {} %}
+    {% if status_filter %}{% set _ = extra.update({'status': status_filter}) %}{% endif %}
+    {% if mine_only %}{% set _ = extra.update({'mine': 1}) %}{% endif %}
+    {{ pager(page, 'tasks.index', extra) }}
+  {% else %}
+    <p class="empty">لا توجد مهام في هذا العرض.</p>
+  {% endif %}
+{% endblock %}

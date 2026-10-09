@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'تعديل مهمة' if task else 'مهمة جديدة' }} — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <header class="page-head row">
+    <div>
+      <h1>{{ 'تعديل مهمة' if task else 'مهمة جديدة' }}</h1>
+      {% if task %}<p class="muted">#{{ task.id }} · {{ task.status_label }}</p>{% endif %}
+    </div>
+    <a class="btn ghost" href="{{ url_for('tasks.index') }}">رجوع للقائمة</a>
+  </header>
+
+  <form method="post" class="narrow">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="field">
+      {{ form.title.label }}
+      {{ form.title() }}
+      {% for e in form.title.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="field">
+      {{ form.description.label }}
+      {{ form.description() }}
+      {% for e in form.description.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        {{ form.status.label }}
+        {{ form.status() }}
+        {% for e in form.status.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="field">
+        {{ form.priority.label }}
+        {{ form.priority() }}
+        {% for e in form.priority.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      {{ form.assignee_id.label }}
+      {{ form.assignee_id() }}
+      {% if not current_user.can_edit_articles %}
+        <p class="muted small">أنت مكلّف بهذه المهمة تلقائياً.</p>
+      {% endif %}
+      {% for e in form.assignee_id.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="field">
+      {{ form.article_id.label }}
+      {{ form.article_id() }}
+      {% for e in form.article_id.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="field">
+      {{ form.due_date.label }}
+      {{ form.due_date() }}
+      {% for e in form.due_date.errors %}<p class="err">{{ e }}</p>{% endfor %}
+    </div>
+
+    <button class="btn gold" type="submit">{{ form.submit.label.text }}</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,31 @@
+{# صندوق الملخص مع زر AI-1. الهدف: #ai-summary-box.
+   يستبدله HTMX بنفس الملف بعد نجاح النداء أو فشله. #}
+<div class="ai-box" id="ai-summary-box">
+  <div class="ai-head">
+    <label for="summary">الملخص</label>
+    {% if article %}
+      {% if ai_ready %}
+        <button type="button" class="ai-btn"
+                hx-post="{{ url_for('editor.ai_summary', article_id=article.id) }}"
+                hx-target="#ai-summary-box"
+                hx-swap="outerHTML"
+                hx-indicator="#ai-wait">
+          تلخيص بالذكاء الاصطناعي
+        </button>
+        <span class="ai-wait" id="ai-wait" hx-indicator>
+          <span class="dot"></span> جارٍ التلخيص…
+        </span>
+      {% else %}
+        <span class="muted small">يلزم ضبط OPENAI_API_KEY في ملف .env لتفعيل التلخيص.</span>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {% if error %}
+    <p class="alert alert-error">{{ error }}</p>
+  {% elif article and article.summary %}
+    <p class="summary-text">{{ article.summary }}</p>
+  {% elif article %}
+    <p class="muted">لا يوجد ملخص بعد.</p>
+  {% endif %}
+</div>

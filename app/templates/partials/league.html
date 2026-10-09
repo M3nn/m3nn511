@@ -1,0 +1,55 @@
+{# مشاركات قسم دوري روشن — تُستورد في الصفحة الرئيسية لبناء ساحة
+   [مباريات هذا الأسبوع | أحدث الأخبار | آخر النتائج].
+   البيانات تأتي من app/league/service.py جاهزة للعرض: أسماء عربية، شعارات
+   محلية، توقيت الرياض، تاريخ ميلادي وهجري، ملعب ومدينة بالعربية. #}
+{% macro crest(t) %}
+  {% if t.crest %}
+    <img class="crest" src="{{ url_for('static', filename='img/teams/' ~ t.crest) }}"
+         alt="{{ t.name }}" width="36" height="36" loading="lazy">
+  {% else %}
+    <span class="crest crest-fallback" aria-hidden="true">{{ t.name[:1] }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro match_row(m, mode) %}
+  {# mode: 'fixture' للمباراة القادمة، 'result' للنتيجة المنجزة #}
+  <li class="match {{ 'is-done' if mode == 'result' else 'is-fixture' }}{% if m.status == 'live' %} is-live{% endif %}">
+    <p class="match-when">
+      <span class="match-day">{{ m.weekday }}</span>
+      <time class="match-date">{{ m.date_greg }}</time>
+      <span class="match-hijri">{{ m.date_hijri }} هـ</span>
+      {% if mode == 'fixture' %}<span class="match-hour">{{ m.time }}</span>{% endif %}
+      {% if m.status == 'live' %}
+        <span class="live-pill"><span class="live-dot"></span>مباشر</span>
+      {% endif %}
+    </p>
+
+    <p class="match-teams">
+      <span class="side">
+        <span class="side-name">{{ m.home.name }}</span>
+        {{ crest(m.home) }}
+      </span>
+      {% if mode == 'result' or m.status == 'live' %}
+        <span class="score">{{ m.home_score }}<em>:</em>{{ m.away_score }}</span>
+      {% else %}
+        <span class="vs">VS</span>
+      {% endif %}
+      <span class="side side-away">
+        {{ crest(m.away) }}
+        <span class="side-name">{{ m.away.name }}</span>
+      </span>
+    </p>
+
+    {% if m.stadium %}
+      <p class="match-venue">
+        <svg class="pin" viewBox="0 0 24 24" width="13" height="13" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"></path>
+          <circle cx="12" cy="10" r="2.6"></circle>
+        </svg>
+        <span>{{ m.stadium }}{% if m.city %}<span class="sep"> · </span>{{ m.city }}{% endif %}</span>
+      </p>
+    {% endif %}
+  </li>
+{% endmacro %}

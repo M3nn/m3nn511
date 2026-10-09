@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}إحصاء التحرير — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <h1>ملخّص التحرير</h1>
+    <p class="muted">أرقام المقالات والمهام.</p>
+  </header>
+
+  <div class="stat-row">
+    <div class="stat">
+      <span class="stat-num">{{ articles.get('published', 0) }}</span>
+      <span class="stat-label">مقال منشور</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">{{ articles.get('draft', 0) }}</span>
+      <span class="stat-label">مسودة</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">{{ active_tasks }}</span>
+      <span class="stat-label">مهمة نشطة</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">{{ tasks.get('done', 0) }}</span>
+      <span class="stat-label">مهمة منجزة</span>
+    </div>
+  </div>
+
+  <p><a class="btn ghost" href="{{ url_for('editor.index') }}">رجوع للقائمة</a></p>
+{% endblock %}
