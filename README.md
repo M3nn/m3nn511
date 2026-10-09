@@ -47,7 +47,8 @@ Copy-Item .env.example .env
 | `editor` | `editor123` | محرّر |
 | `writer` | `writer123` | كاتب |
 
-> هذه البيانات للتجربة المحلية فقط. أي نشر حقيقي يستلزم تغييرها وحذف `seed`.
+> هذه البيانات للتجربة المحلية فقط. أي نشر حقيقي يستلزم تغييرها وحذف `seed` —
+> غيّر كلمات المرور بسكربت `change_passwords.py` (انظر قسم «أوامر مفيدة»).
 
 ## 3. الاختبارات
 
@@ -169,6 +170,11 @@ DEPLOY.md            دليل النشر الكامل: cPanel · VPS · Render �
 
 # تحديث كاش دوري روشن يدوياً (بدون انتظار المهلة)
 .\.venv\Scripts\python.exe -m flask --app run fetch-league
+
+# تغيير كلمات مرور المستخدمين — مهم قبل أي نشر (كلمة المرور تُدخل بطلب آمن)
+.\.venv\Scripts\python.exe change_passwords.py --list
+.\.venv\Scripts\python.exe change_passwords.py admin
+.\.venv\Scripts\python.exe change_passwords.py --create chief --role admin --display "رئيس التحرير"
 
 # إحصاء التحرير (يتطلّب محرّب أو مدير)
 #    http://127.0.0.1:8000/editor/stats
