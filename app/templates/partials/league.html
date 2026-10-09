@@ -12,13 +12,25 @@
 {% endmacro %}
 
 {% macro match_row(m, mode) %}
-  {# mode: 'fixture' للمباراة القادمة، 'result' للنتيجة المنجزة #}
-  <li class="match {{ 'is-done' if mode == 'result' else 'is-fixture' }}{% if m.status == 'live' %} is-live{% endif %}">
+  {# mode: 'fixture' للمباراة القادمة، 'result' للنتيجة المنجزة.
+     المباريات المنتهية قد تحمل m.summary فيظهر تلميح عند المرور بالماوس. #}
+  {% set summary = m.summary if mode == 'result' else none %}
+  <li class="match {{ 'is-done' if mode == 'result' else 'is-fixture' }}{% if m.status == 'live' %} is-live{% endif %}"
+      {%- if summary %} data-summary='{{ summary|tojson }}' tabindex="0"{% endif %}>
     <p class="match-when">
       <span class="match-day">{{ m.weekday }}</span>
       <time class="match-date">{{ m.date_greg }}</time>
       <span class="match-hijri">{{ m.date_hijri }} هـ</span>
       {% if mode == 'fixture' %}<span class="match-hour">{{ m.time }}</span>{% endif %}
+      {% if summary %}
+        <span class="summary-cue" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"></path>
+            <circle cx="12" cy="12" r="2.6"></circle>
+          </svg>الملخص
+        </span>
+      {% endif %}
       {% if m.status == 'live' %}
         <span class="live-pill"><span class="live-dot"></span>مباشر</span>
       {% endif %}

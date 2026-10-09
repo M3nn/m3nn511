@@ -32,6 +32,9 @@ RIYADH = timezone(timedelta(hours=3))
 SCOREBOARD_URL = (
     "https://site.api.espn.com/apis/site/v2/sports/soccer/ksa.1/scoreboard?dates={month}"
 )
+SUMMARY_URL = (
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/ksa.1/summary?event={event}"
+)
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0"
 CREST_DIR = Path(__file__).resolve().parent.parent / "static" / "img" / "teams"
 
@@ -205,6 +208,14 @@ def fetch_scoreboards(now: datetime) -> list[dict]:
     return events
 
 
+def fetch_summary(event_id: str) -> dict:
+    """ملخص مباراة (أحداث/بطاقات/تبديلات) من ESPN.
+
+    **نقطة الاستبدال في الاختبارات:** يستبدلها ``monkeypatch`` فلا توجد شبكة."""
+    timeout = float(current_app.config["LEAGUE_TIMEOUT"])
+    return _http_get_json(SUMMARY_URL.format(event=event_id), timeout)
+
+
 # ---------------------------------------------------------------- التطبيع
 
 def _crest_name(team_id: str) -> str | None:
@@ -222,6 +233,73 @@ def _team(rival: dict) -> dict:
         "name": TEAMS_AR.get(team_id) or team.get("displayName") or "—",
         "crest": _crest_name(team_id),
     }
+
+
+def _team_label(team: dict | None) -> str:
+    """اسم الفريق بالعربية من كائن الفريق (بالاعتماد على معرّف ESPN)."""
+    team = team or {}
+    team_id = str(team.get("id") or "")
+    return TEAMS_AR.get(team_id) or str(team.get("displayName") or "").strip()
+
+
+def _assists_from_rosters(summary: dict) -> list[dict]:
+    """لاعبو المباراة الذين صنعوا أهدافاً (إجمالي التمريرات الحاسمة لكل لاعب)."""
+    assists: list[dict] = []
+    for block in summary.get("rosters") or []:
+        team = _team_label(block.get("team"))
+        for player in block.get("roster") or []:
+            total = 0.0
+            for stat in player.get("stats") or []:
+                if stat.get("name") == "goalAssists":
+                    try:
+                        total = float(stat.get("value") or 0)
+                    except (TypeError, ValueError):
+                        total = 0.0
+            name = str((player.get("athlete") or {}).get("displayName") or "").strip()
+            if total > 0 and name:
+                assists.append({"player": name, "team": team, "count": int(total)})
+    return assists
+
+
+def _summary_view(summary: dict) -> dict | None:
+    """يحوّل ملخص ESPN إلى بنية جاهزة لتلميح المباراة (بلا HTML)، أو None للفراغ.
+
+    الأحداث المدعومة: الأهداف (بما فيها الجزاء والعكسي)، البطاقات (أصفر/أحمر)،
+    التبديلات (الداخل/الخارج بالدقيقة)، وقائمة صنّاع الأهداف من إحصاء اللاعبين."""
+    goals: list[dict] = []
+    cards: list[dict] = []
+    subs: list[dict] = []
+    for event in summary.get("keyEvents") or []:
+        etype = str((event.get("type") or {}).get("type") or "")
+        minute = str((event.get("clock") or {}).get("displayValue") or "").strip()
+        team = _team_label(event.get("team"))
+        names = [
+            str((p.get("athlete") or {}).get("displayName") or "").strip()
+            for p in event.get("participants") or []
+        ]
+        player = names[0] if names else ""
+        if "own" in etype and "goal" in etype:
+            goals.append({"minute": minute, "player": player, "team": team, "kind": "own"})
+        elif etype == "penalty---scored":
+            goals.append({"minute": minute, "player": player, "team": team, "kind": "penalty"})
+        elif etype == "goal":
+            goals.append({"minute": minute, "player": player, "team": team, "kind": "goal"})
+        elif "red" in etype:
+            cards.append({"minute": minute, "player": player, "team": team, "kind": "red"})
+        elif "yellow" in etype:
+            cards.append({"minute": minute, "player": player, "team": team, "kind": "yellow"})
+        elif etype == "substitution":
+            subs.append({
+                "minute": minute,
+                "team": team,
+                "in": player,
+                "out": names[1] if len(names) > 1 else "",
+            })
+
+    assists = _assists_from_rosters(summary)
+    if not (goals or cards or subs or assists):
+        return None
+    return {"goals": goals, "cards": cards, "subs": subs, "assists": assists}
 
 
 def _hijri_label(day) -> str:
@@ -338,11 +416,25 @@ def _week_end(now: datetime) -> datetime:
     )
 
 
+def _attach_summaries(payload: dict) -> dict:
+    """يلحق ملخص الأحداث بالمباريات المنتهية المعروضة. فشل مباراة لا يُسقط البقية."""
+    for match in payload.get("results") or []:
+        try:
+            view = _summary_view(fetch_summary(match["id"]))
+        except Exception as exc:
+            log.debug("league.summary_failed id=%s err=%s", match.get("id"), exc)
+            continue
+        if view:
+            match["summary"] = view
+    return payload
+
+
 def _refresh(old: dict | None, now: datetime) -> dict | None:
     """يجلب ويبني ويخزّن؛ عند أي فشل يعود بالنسخة القديمة (أو None)."""
     try:
         events = fetch_scoreboards(now)
         payload = build_payload(events, now)
+        _attach_summaries(payload)
     except Exception as exc:
         log.warning("league.refresh_failed err=%s", exc)
         return old

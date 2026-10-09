@@ -67,6 +67,7 @@ def league(app, tmp_path, monkeypatch):
         (crests / f"{team_id}.png").write_bytes(b"png-bytes")
     monkeypatch.setattr(service, "CREST_DIR", crests)
     monkeypatch.setattr(service, "fetch_scoreboards", lambda now: [])
+    monkeypatch.setattr(service, "fetch_summary", lambda event_id: {})
     return app
 
 
@@ -270,3 +271,96 @@ def test_fetch_league_cli_refreshes_the_cache(league, monkeypatch):
     assert "1 نتيجة" in result.output
     assert "1 مباراة قادمة" in result.output
     assert service._cache_path().exists()
+
+
+def _summary_payload() -> dict:
+    """ملخص ESPN مصغّر: هدف، ركلة جزاء، بطاقتان، تبديل، وصانع هدف."""
+    return {
+        "keyEvents": [
+            {"type": {"type": "goal"}, "clock": {"displayValue": "4'"}, "team": {"id": "22022"},
+             "participants": [{"athlete": {"displayName": "Tijjani Reijnders"}}]},
+            {"type": {"type": "penalty---scored"}, "clock": {"displayValue": "67'"}, "team": {"id": "22022"},
+             "participants": [{"athlete": {"displayName": "Mateo Retegui"}}]},
+            {"type": {"type": "yellow-card"}, "clock": {"displayValue": "30'"}, "team": {"id": "22028"},
+             "participants": [{"athlete": {"displayName": "John Buckley"}}]},
+            {"type": {"type": "red-card"}, "clock": {"displayValue": "80'"}, "team": {"id": "22028"},
+             "participants": [{"athlete": {"displayName": "Adi"}}]},
+            {"type": {"type": "substitution"}, "clock": {"displayValue": "56'"}, "team": {"id": "22028"},
+             "participants": [{"athlete": {"displayName": "Guga"}}, {"athlete": {"displayName": "Julien Domingues"}}]},
+        ],
+        "rosters": [
+            {"team": {"id": "22022"}, "roster": [
+                {"athlete": {"displayName": "Musab Al-Juwayr"}, "stats": [{"name": "goalAssists", "value": 1.0}]},
+                {"athlete": {"displayName": "Tijjani Reijnders"}, "stats": [{"name": "goalAssists", "value": 0.0}]},
+            ]},
+        ],
+    }
+
+
+def test_summary_view_extracts_events_and_assists():
+    view = service._summary_view(_summary_payload())
+
+    assert [g["player"] for g in view["goals"]] == ["Tijjani Reijnders", "Mateo Retegui"]
+    assert view["goals"][0]["team"] == "القادسية"
+    assert view["goals"][1]["kind"] == "penalty"
+    assert [c["kind"] for c in view["cards"]] == ["yellow", "red"]
+    assert view["cards"][1]["team"] == "الخلود"
+    assert view["subs"][0] == {
+        "minute": "56'", "team": "الخلود", "in": "Guga", "out": "Julien Domingues",
+    }
+    assert view["assists"] == [{"player": "Musab Al-Juwayr", "team": "القادسية", "count": 1}]
+
+
+def test_summary_view_returns_none_when_empty():
+    assert service._summary_view({}) is None
+    assert service._summary_view({"keyEvents": [], "rosters": []}) is None
+
+
+def test_attach_summaries_links_events_to_finished_results_only(monkeypatch):
+    payload = {"results": [{"id": "1"}, {"id": "2"}], "fixtures": [{"id": "3"}]}
+    calls: list[str] = []
+
+    def fake(event_id: str) -> dict:
+        calls.append(event_id)
+        return _summary_payload() if event_id == "1" else {}
+
+    monkeypatch.setattr(service, "fetch_summary", fake)
+    service._attach_summaries(payload)
+
+    assert calls == ["1", "2"]  # المواعيد لا تُجلب لها ملخصات
+    assert payload["results"][0]["summary"]["goals"][0]["team"] == "القادسية"
+    assert "summary" not in payload["results"][1]
+    assert "summary" not in payload["fixtures"][0]
+
+
+def test_attach_summaries_survives_a_failed_match(monkeypatch):
+    payload = {"results": [{"id": "1"}]}
+
+    def boom(event_id: str) -> dict:
+        raise OSError("لا اتصال")
+
+    monkeypatch.setattr(service, "fetch_summary", boom)
+    service._attach_summaries(payload)
+
+    assert "summary" not in payload["results"][0]
+
+
+def test_finished_match_renders_hover_summary(league, monkeypatch):
+    now_utc = datetime.now(timezone.utc).replace(microsecond=0)
+    events = [
+        _event(
+            "7", _iso(now_utc - timedelta(days=1)), "post", "817", "22028",
+            home_score=2, away_score=0,
+            stadium="Kingdom Arena", city="Riyadh",
+        )
+    ]
+    monkeypatch.setattr(service, "fetch_scoreboards", lambda now: events)
+    monkeypatch.setattr(service, "fetch_summary", lambda event_id: _summary_payload())
+
+    html = league.test_client().get("/").get_data(as_text=True)
+
+    assert "data-summary=" in html           # التلميح يحمل بيانات الحدث
+    assert "summary-cue" in html             # إشارة «الملخص» للمباراة المنتهية
+    assert "Tijjani Reijnders" in html       # اسم مسجّل الهدف داخل البيانات
+    assert "goalAssists" not in html         # لا نكشف أسماء إحصاءات ESPN
+
