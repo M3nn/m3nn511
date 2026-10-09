@@ -68,6 +68,7 @@ def league(app, tmp_path, monkeypatch):
     monkeypatch.setattr(service, "CREST_DIR", crests)
     monkeypatch.setattr(service, "fetch_scoreboards", lambda now: [])
     monkeypatch.setattr(service, "fetch_summary", lambda event_id: {})
+    monkeypatch.setattr(service, "translate_names", lambda names: {})
     return app
 
 
@@ -356,6 +357,9 @@ def test_finished_match_renders_hover_summary(league, monkeypatch):
     ]
     monkeypatch.setattr(service, "fetch_scoreboards", lambda now: events)
     monkeypatch.setattr(service, "fetch_summary", lambda event_id: _summary_payload())
+    # بلا قاموس ولا ترجمة ⇒ تبقى الأسماء الإنجليزية (نداء شبكة ممنوع في الاختبارات)
+    monkeypatch.setattr(service, "_seed_names", lambda: {})
+    monkeypatch.setattr(service, "translate_names", lambda names: {})
 
     html = league.test_client().get("/").get_data(as_text=True)
 
@@ -363,4 +367,21 @@ def test_finished_match_renders_hover_summary(league, monkeypatch):
     assert "summary-cue" in html             # إشارة «الملخص» للمباراة المنتهية
     assert "Tijjani Reijnders" in html       # اسم مسجّل الهدف داخل البيانات
     assert "goalAssists" not in html         # لا نكشف أسماء إحصاءات ESPN
+
+
+def test_arabic_names_uses_the_committed_dictionary():
+    mapping = service._arabic_names({"Cristiano Ronaldo", "Unknown Player Zzz"})
+
+    assert mapping["Cristiano Ronaldo"] == "كريستيانو رونالدو"   # من القاموس المرفق
+    assert mapping["Unknown Player Zzz"] == "Unknown Player Zzz"  # مجهول يبقى كما هو
+
+
+def test_translate_view_replaces_player_names_in_place():
+    view = service._summary_view(_summary_payload())
+    service._translate_view(view, {"Tijjani Reijnders": "تيجاني ريندرز", "Guga": "جوجا"})
+
+    assert view["goals"][0]["player"] == "تيجاني ريندرز"
+    assert view["subs"][0]["in"] == "جوجا"
+    assert view["subs"][0]["out"] == "Julien Domingues"  # غير موجود في الخريطة ⇒ يبقى
+
 

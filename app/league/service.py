@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -37,6 +39,14 @@ SUMMARY_URL = (
 )
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0"
 CREST_DIR = Path(__file__).resolve().parent.parent / "static" / "img" / "teams"
+PLAYERS_AR_FILE = Path(__file__).resolve().parent / "players_ar.json"
+GOOGLE_TRANSLATE_URL = (
+    "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=en&tl=ar&{q}"
+)
+MYMEMORY_URL = "https://api.mymemory.translated.net/get?q={q}&langpair=en|ar"
+NAME_BATCH = 40             # عدد الأسماء في نداء ترجمة واحد
+NAME_TRANSLATE_LIMIT = 120  # سقف الأسماء الجديدة المترجمة في التحديث الواحد
+_AR_RE = re.compile(r"[\u0600-\u06FF]")
 
 HIJRI_MONTHS = [
     "محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة",
@@ -130,6 +140,130 @@ def _write_cache(path: Path, payload: dict) -> None:
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     except OSError as exc:
         log.warning("league.cache_write_failed err=%s", exc)
+
+
+# ------------------------------------------------------- أسماء اللاعبين بالعربية
+
+_seed_names_cache: dict | None = None
+
+
+def _read_name_file(path: Path | None) -> dict:
+    if path is None:
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_name_file(path: Path, data: dict) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8"
+        )
+    except OSError as exc:
+        log.debug("league.names_write_failed err=%s", exc)
+
+
+def _seed_names() -> dict:
+    """قاموس الأسماء المرفق بالكود (إنجليزي ⇒ عربي)، يُقرأ مرة واحدة."""
+    global _seed_names_cache
+    if _seed_names_cache is None:
+        _seed_names_cache = _read_name_file(PLAYERS_AR_FILE)
+    return _seed_names_cache
+
+
+def _names_cache_path() -> Path | None:
+    """ملف ذاكرة الترجمة وقت التشغيل؛ None خارج سياق التطبيق (لا شبكة)."""
+    try:
+        folder = current_app.config.get("LEAGUE_CACHE_DIR") or current_app.instance_path
+    except RuntimeError:
+        return None
+    return Path(folder) / "players_ar.json"
+
+
+def _google_translate(chunk: list[str], timeout: float) -> dict:
+    """ترجمة دفعة أسماء عبر نقطة جوجل العامة (نداء واحد لعدة أسماء)."""
+    query = "&".join("q=" + urllib.parse.quote(name) for name in chunk)
+    request = urllib.request.Request(
+        GOOGLE_TRANSLATE_URL.format(q=query),
+        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    if isinstance(data, list) and data and isinstance(data[0], list):
+        data = data[0]
+    if not isinstance(data, list) or len(data) != len(chunk):
+        return {}
+    out: dict = {}
+    for name, translated in zip(chunk, data):
+        text = str(translated).strip()
+        if text and _AR_RE.search(text):
+            out[name] = text
+    return out
+
+
+def _mymemory_translate(name: str, timeout: float) -> str:
+    request = urllib.request.Request(
+        MYMEMORY_URL.format(q=urllib.parse.quote(name)),
+        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    text = str((data.get("responseData") or {}).get("translatedText") or "").strip()
+    if not text or not _AR_RE.search(text) or "MYMEMORY WARNING" in text.upper():
+        return ""
+    return re.split(r"[(,،]", text)[0].strip()  # إزالة أي شرح قاموسي
+
+
+def translate_names(names: list[str]) -> dict:
+    """أسماء إنجليزية ⇒ عربية. جوجل أولاً ثم MyMemory احتياطاً.
+
+    **نقطة الاستبدال في الاختبارات:** يستبدلها ``monkeypatch`` فلا توجد شبكة."""
+    translated: dict = {}
+    timeout = float(current_app.config["LEAGUE_TIMEOUT"])
+    for start in range(0, len(names), NAME_BATCH):
+        chunk = names[start:start + NAME_BATCH]
+        try:
+            translated.update(_google_translate(chunk, timeout))
+        except Exception as exc:
+            log.debug("league.name_batch_failed err=%s", exc)
+    missing = [n for n in names if n not in translated]
+    for name in missing[:NAME_TRANSLATE_LIMIT]:
+        try:
+            text = _mymemory_translate(name, timeout)
+        except Exception as exc:
+            log.debug("league.name_fallback_failed err=%s", exc)
+            continue
+        if text:
+            translated[name] = text
+    return translated
+
+
+def _arabic_names(names: set) -> dict:
+    """خريطة الاسم الإنجليزي ⇒ عربي من القاموس المرفق + ذاكرة وقت التشغيل،
+    ويُترجم الجديد منها فقط ثم يُخزَّن. تعذّر الشبكة يُبقي الاسم الإنجليزي."""
+    wanted = {str(n).strip() for n in names if n and str(n).strip()}
+    if not wanted:
+        return {}
+    mapping = dict(_seed_names())
+    path = _names_cache_path()
+    runtime = _read_name_file(path)
+    mapping.update(runtime)
+    missing = sorted(n for n in wanted if n not in mapping)
+    if missing and path is not None:
+        try:
+            fresh = translate_names(missing[:NAME_TRANSLATE_LIMIT])
+        except Exception as exc:
+            log.debug("league.names_translate_failed err=%s", exc)
+            fresh = {}
+        if fresh:
+            mapping.update(fresh)
+            runtime.update(fresh)
+            _write_name_file(path, runtime)
+    return {n: mapping.get(n, n) for n in wanted}
 
 
 def _age_seconds(payload: dict, now: datetime) -> float:
@@ -302,6 +436,37 @@ def _summary_view(summary: dict) -> dict | None:
     return {"goals": goals, "cards": cards, "subs": subs, "assists": assists}
 
 
+def _view_names(view: dict) -> set:
+    """كل أسماء اللاعبين الواردة في ملخص مباراة."""
+    names = set()
+    for goal in view.get("goals", []):
+        names.add(goal.get("player", ""))
+    for card in view.get("cards", []):
+        names.add(card.get("player", ""))
+    for sub in view.get("subs", []):
+        names.add(sub.get("in", ""))
+        names.add(sub.get("out", ""))
+    for assist in view.get("assists", []):
+        names.add(assist.get("player", ""))
+    return {n for n in names if n}
+
+
+def _translate_view(view: dict, names: dict) -> None:
+    """يستبدل أسماء اللاعبين بنسخها العربية داخل الملخص (في المكان)."""
+    def arabic(value: str | None) -> str | None:
+        return names.get(value, value) if value else value
+
+    for goal in view.get("goals", []):
+        goal["player"] = arabic(goal.get("player"))
+    for card in view.get("cards", []):
+        card["player"] = arabic(card.get("player"))
+    for sub in view.get("subs", []):
+        sub["in"] = arabic(sub.get("in"))
+        sub["out"] = arabic(sub.get("out"))
+    for assist in view.get("assists", []):
+        assist["player"] = arabic(assist.get("player"))
+
+
 def _hijri_label(day) -> str:
     """التاريخ الهجري (أم القرى) بالعربية: «28 ربيع الآخر 1448»."""
     hijri = Gregorian(day.year, day.month, day.day).to_hijri()
@@ -417,15 +582,25 @@ def _week_end(now: datetime) -> datetime:
 
 
 def _attach_summaries(payload: dict) -> dict:
-    """يلحق ملخص الأحداث بالمباريات المنتهية المعروضة. فشل مباراة لا يُسقط البقية."""
+    """يلحق ملخص الأحداث بالمباريات المنتهية المعروضة بعد ترجمة أسماء اللاعبين.
+    فشل مباراة أو تعذّر الترجمة لا يُسقط البقية."""
+    placed: list[tuple[dict, dict]] = []
+    names: set = set()
     for match in payload.get("results") or []:
         try:
             view = _summary_view(fetch_summary(match["id"]))
         except Exception as exc:
             log.debug("league.summary_failed id=%s err=%s", match.get("id"), exc)
             continue
-        if view:
-            match["summary"] = view
+        if not view:
+            continue
+        placed.append((match, view))
+        names |= _view_names(view)
+
+    translated = _arabic_names(names)
+    for match, view in placed:
+        _translate_view(view, translated)
+        match["summary"] = view
     return payload
 
 
