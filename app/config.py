@@ -67,6 +67,11 @@ class Config:
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "").strip()
     ADMIN_DISPLAY_NAME = os.getenv("ADMIN_DISPLAY_NAME", "").strip()
 
+    # ---- تعبئة المحتوى تلقائياً عند الإقلاع إن كانت القاعدة فارغة ----
+    # مفيد على الاستضافات ذات الملفات المؤقتة (Render المجاني) كي تظهر المنصة
+    # كاملة بعد كل إعادة تشغيل. يبدأ مطفأً افتراضياً، ومُفعّل افتراضياً في الإنتاج.
+    SEED_ON_STARTUP = _flag("SEED_ON_STARTUP", False)
+
     # حجم الصفحة الموحّد عبر الموقع كله
     ITEMS_PER_PAGE = int(os.getenv("ITEMS_PER_PAGE", "13"))
     ITEMS_PER_PAGE_ADMIN = 20
@@ -113,6 +118,9 @@ class ProdConfig(Config):
 
     DEBUG = False
     TESTING = False
+    # على الإنتاج نُعبّئ المحتوى تلقائياً إن كانت القاعدة فارغة (يمكن إطفاؤه
+    # بضبط SEED_ON_STARTUP=0 في متغيّرات البيئة).
+    SEED_ON_STARTUP = _flag("SEED_ON_STARTUP", True)
 
 
 class TestConfig(Config):

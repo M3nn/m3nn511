@@ -130,6 +130,27 @@ def _bootstrap_database(app: Flask) -> None:
                         user.set_password(password)
                     log.info("bootstrap.admin_synced username=%s", username)
                 db.session.commit()
+
+            # تعبئة المحتوى تلقائياً إن كانت القاعدة بلا أخبار (استضافات بلا
+            # تخزين دائم). يُسند المحتوى للمسؤول بلا إنشاء حسابات موظفين.
+            if app.config.get("SEED_ON_STARTUP"):
+                from sqlalchemy import func
+
+                if not db.session.scalar(db.select(func.count(Article.id))):
+                    from app.seed import seed_content
+
+                    admin_user = None
+                    if username:
+                        admin_user = db.session.scalar(
+                            db.select(User).where(User.username == username)
+                        )
+                    if admin_user is None:
+                        admin_user = db.session.scalar(
+                            db.select(User).where(User.role == Role.ADMIN)
+                        )
+                    if admin_user is not None:
+                        for line in seed_content(admin_user, admin_user):
+                            log.info("bootstrap.seed %s", line)
     except Exception:  # لا نُسقط العامل إن تعذّر الوصول للقاعدة
         log.error("bootstrap.failed", exc_info=True)
 

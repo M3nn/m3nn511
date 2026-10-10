@@ -276,6 +276,25 @@ def seed_all() -> list[str]:
     ]
 
 
+def seed_content(author: User, assignee: User | None = None) -> list[str]:
+    """يعبّئ التصنيفات والأخبار والمهام فقط (بلا إنشاء حسابات موظفين تجريبية).
+
+    يُستخدم عند الإقلاع على استضافة بلا تخزين دائم (Render المجاني) كي تظهر
+    المنصة كاملة بعد كل إعادة تشغيل، مع إسناد المحتوى للمسؤول. آمن للتكرار."""
+    from app.models import AIUsage  # noqa: F401 - يضمن تسجيل كل الجداول
+
+    assignee = assignee or author
+    db.create_all()
+    categories = _seed_categories()
+    articles = _seed_articles_for([author], categories)
+    tasks = _seed_tasks_for([assignee], articles)
+    return [
+        f"✔ التصنيفات: {len(categories)}",
+        f"✔ المقالات: {len(articles)}",
+        f"✔ المهام: {tasks}",
+    ]
+
+
 def _seed_users() -> dict[str, User]:
     result = {}
     for username, password, display, role in USERS:
@@ -302,8 +321,11 @@ def _seed_categories() -> dict[str, Category]:
 
 
 def _seed_articles(users, categories) -> list[Article]:
+    return _seed_articles_for([users["editor"], users["writer"]], categories)
+
+
+def _seed_articles_for(authors, categories) -> list[Article]:
     now = dt.datetime.now(dt.UTC).replace(tzinfo=None)
-    authors = [users["editor"], users["writer"]]
     created = []
 
     for i, (title, cat_name, status, summary, body, days_ago) in enumerate(ARTICLES):
@@ -332,11 +354,14 @@ def _seed_articles(users, categories) -> list[Article]:
 
 def _seed_tasks(users, articles) -> int:
     """يبذر المهام مرة واحدة فقط. يُرجع عدد ما أُنشئ."""
+    return _seed_tasks_for([users["editor"], users["writer"], users["admin"]], articles)
+
+
+def _seed_tasks_for(assignees, articles) -> int:
     if db.session.scalar(select(func.count(Task.id))):
         log.info("seed.tasks_skipped already_present")
         return 0
 
-    assignees = [users["editor"], users["writer"], users["admin"]]
     today = dt.date.today()
     for i, (title, status, priority, offset) in enumerate(TASKS):
         db.session.add(
