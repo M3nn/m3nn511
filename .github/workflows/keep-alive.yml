@@ -1,7 +1,10 @@
 name: keep-alive
 
-# يُبقي خدمة Render المجانية صاحية: الخطة المجانية تُنيم الخدمة بعد ~15 دقيقة
-# خمول، فنرسل طلبًا دوريًا كل 5 دقائق لمنع النوم (أول زيارة بعد النوم بطيئة).
+# مهمّتان في مرور واحد:
+#  1) يُبقي خدمة Render المجانية صاحية: تُنام بعد ~15 دقيقة خمول، فنرسل طلبًا
+#     دوريًا كل 5 دقائق لمنع النوم (أول زيارة بعد النوم بطيئة).
+#  2) إن فرغت قاعدة بيانات الموقع (الملفات مؤقتة على الخطة المجانية) يعبّي
+#     المحتوى تلقائيًا من tools/content.json — بلا أي تدخّل بشري.
 on:
   schedule:
     - cron: "*/5 * * * *"
@@ -14,7 +17,7 @@ concurrency:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Ping nassr-news.onrender.com
         run: |
@@ -31,3 +34,13 @@ jobs:
           done
           echo "No HTTP 200 after retries (possibly cold-starting); exiting 0 on purpose."
           exit 0
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Refill content if the site database was wiped
+        continue-on-error: true
+        env:
+          NASSR_ADMIN_USER: ${{ secrets.NASSR_ADMIN_USER }}
+          NASSR_ADMIN_PASSWORD: ${{ secrets.NASSR_ADMIN_PASSWORD }}
+        run: python3 tools/reseed.py
