@@ -182,6 +182,7 @@ server {
 | `LEAGUE_ENABLED` | `1` (أو `0` إن كانت الاستضافة تحجب ESPN) |
 | `DATABASE_URL` | اختياري — رابط Postgres دائم (مثل Neon/Supabase) بدل SQLite المؤقت على Render |
 | `ADMIN_USERNAME` + `ADMIN_PASSWORD` | اختياري — مسؤول أول يُنشأ تلقائياً عند الإقلاع إن كانت القاعدة فارغة |
+| `FLASK_CONFIG` | `prod` على الخوادم — يعطّل `DEBUG` ويخفي بيانات الحسابات التجريبية |
 | `LOG_LEVEL` | `INFO` (إنتاج) أو `WARNING` (أقل ضجيجاً) |
 
 ## قائمة الفحص النهائية (production checklist)

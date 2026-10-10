@@ -108,6 +108,13 @@ class DevConfig(Config):
     TEMPLATES_AUTO_RELOAD = True
 
 
+class ProdConfig(Config):
+    """الإنتاج: بلا وضع تصحيح كي لا تُسرّب تفاصيل الأخطاء للزوار."""
+
+    DEBUG = False
+    TESTING = False
+
+
 class TestConfig(Config):
     TESTING = True
     WTF_CSRF_ENABLED = False
@@ -122,7 +129,7 @@ class TestConfig(Config):
 
 def resolve_config(name: str | None):
     """يحوّل اسم الإعداد إلى كلاس فعلي، مع كاشف صغير لتفادي الاستيراد الدائري."""
-    table = {"dev": DevConfig, "test": TestConfig, "default": DevConfig}
+    table = {"dev": DevConfig, "test": TestConfig, "prod": ProdConfig, "default": DevConfig}
     if name:
         try:
             return table[name]()
@@ -130,4 +137,8 @@ def resolve_config(name: str | None):
             raise ValueError(
                 f"Unknown config '{name}'. Choose one of: {', '.join(sorted(table))}"
             ) from None
+    # بلا اسم صريح: الإنتاج افتراضياً عند APP_ENV/FLASK_ENV=production
+    env = (os.getenv("APP_ENV") or os.getenv("FLASK_ENV") or "").strip().lower()
+    if env in {"production", "prod"}:
+        return ProdConfig()
     return (TestConfig if os.getenv("TESTING") else DevConfig)()

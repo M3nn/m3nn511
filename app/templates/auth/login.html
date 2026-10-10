@@ -26,6 +26,7 @@
       <button class="btn gold" type="submit">دخول</button>
     </form>
 
+    {% if config.DEBUG %}
     <details class="hint">
       <summary>حسابات تجريبية (بيانات البذر)</summary>
       <table class="mini-table">
@@ -35,5 +36,6 @@
         <tr><td>writer</td><td>writer123</td><td>كاتب</td></tr>
       </table>
     </details>
+    {% endif %}
   </div>
 {% endblock %}

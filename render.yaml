@@ -16,6 +16,8 @@ services:
         value: INFO
       - key: LEAGUE_ENABLED
         value: "1"
+      - key: FLASK_CONFIG
+        value: prod
       # قاعدة بيانات دائمة (موصى به) — أدخل رابط Postgres في الواجهة بعد الإنشاء:
       # - key: DATABASE_URL
       #   value: postgresql://user:pass@host:5432/db
