@@ -18,6 +18,8 @@ services:
         value: "1"
       - key: FLASK_CONFIG
         value: prod
+      - key: PWA_ENABLED
+        value: "1"
       # قاعدة بيانات دائمة (موصى به) — أدخل رابط Postgres في الواجهة بعد الإنشاء:
       # - key: DATABASE_URL
       #   value: postgresql://user:pass@host:5432/db
