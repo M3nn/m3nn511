@@ -21,13 +21,13 @@ check_*.py
 
 # ملفات تصميم وتصحيح مؤقتة (غير مطلوبة في المستودع)
 c.txt
-check.html
-check_final.html
-check_*.html
-copy_favicon.py
-css_check*.css
-font_preview.html
-login.html
-login2.html
-login3.html
-login_debug.txt
+/check.html
+/check_final.html
+/check_*.html
+/copy_favicon.py
+/css_check*.css
+/font_preview.html
+/login.html
+/login2.html
+/login3.html
+/login_debug.txt

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}دخول الموظفين — منصة أخبار النصر{% endblock %}
+
+{% block content %}
+  <div class="narrow">
+    <header class="page-head">
+      <h1>دخول الموظفين</h1>
+      <p class="muted">المنصة مخصّصة لفريق التحرير. لا يوجد تسجيل عام.</p>
+    </header>
+
+    <form method="post" class="card form-card">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="field">
+        {{ form.username.label }}
+        {{ form.username(autofocus=true) }}
+        {% for e in form.username.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+
+      <div class="field">
+        {{ form.password.label }}
+        {{ form.password() }}
+        {% for e in form.password.errors %}<p class="err">{{ e }}</p>{% endfor %}
+      </div>
+
+      <button class="btn gold" type="submit">دخول</button>
+    </form>
+
+    <details class="hint">
+      <summary>حسابات تجريبية (بيانات البذر)</summary>
+      <table class="mini-table">
+        <tr><th>المستخدم</th><th>كلمة المرور</th><th>الصلاحية</th></tr>
+        <tr><td>admin</td><td>admin123</td><td>مدير</td></tr>
+        <tr><td>editor</td><td>editor123</td><td>محرر</td></tr>
+        <tr><td>writer</td><td>writer123</td><td>كاتب</td></tr>
+      </table>
+    </details>
+  </div>
+{% endblock %}
