@@ -6,11 +6,18 @@
   <title>{% block title %}منصة أخبار النصر{% endblock %}</title>
   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon.png') }}?v=3">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicon.png') }}?v=3">
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/favicon.png') }}?v=3">
+  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='img/icons/favicon-512.png') }}?v=1">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/icons/apple-touch-180.png') }}?v=1">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0a1628">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="أخبار النصر">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@700;800&family=Cairo:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=35">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=37">
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 </head>
 <body>
@@ -44,6 +51,11 @@
           <a class="cta" href="{{ url_for('auth.login') }}">دخول الموظفين</a>
         {% endif %}
       </nav>
+
+      <button id="pwa-install" class="cta pwa-install" type="button" hidden aria-label="تثبيت التطبيق">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
+        تثبيت التطبيق
+      </button>
     </div>
 
     <div class="cats">
@@ -76,5 +88,32 @@
       {% endif %}
     </div>
   </footer>
+
+  <script>
+    // عامل الخدمة: يجعل الموقع قابلًا للتثبيت ويعمل كتطبيق (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+      });
+    }
+    // زر تثبيت التطبيق (يظهر تلقائيًا حين يسمح المتصفّح بالتثبيت)
+    (function () {
+      var btn = document.getElementById('pwa-install');
+      var deferred = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferred = e;
+        if (btn) btn.hidden = false;
+      });
+      if (btn) {
+        btn.addEventListener('click', function () {
+          if (!deferred) return;
+          deferred.prompt();
+          deferred.userChoice.then(function () { deferred = null; btn.hidden = true; });
+        });
+      }
+      window.addEventListener('appinstalled', function () { if (btn) btn.hidden = true; });
+    })();
+  </script>
 </body>
 </html>

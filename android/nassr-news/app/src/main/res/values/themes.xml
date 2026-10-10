@@ -1,0 +1,18 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.Nassr" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/navy</item>
+        <item name="colorPrimaryDark">@color/navy_dark</item>
+        <item name="colorAccent">@color/gold</item>
+        <item name="android:statusBarColor">@color/navy</item>
+        <item name="android:navigationBarColor">@color/navy</item>
+        <item name="android:windowBackground">@color/navy</item>
+        <item name="android:textColorPrimary">@color/ink</item>
+    </style>
+
+    <!-- شاشة الإقلاع: شعار النادي على خلفية كحلية -->
+    <style name="Theme.Nassr.Splash" parent="Theme.Nassr">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+
+</resources>

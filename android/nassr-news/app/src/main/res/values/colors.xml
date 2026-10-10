@@ -1,0 +1,9 @@
+<resources>
+    <color name="navy">#0A1628</color>
+    <color name="navy_dark">#061020</color>
+    <color name="navy_700">#16325A</color>
+    <color name="gold">#D79B18</color>
+    <color name="gold_light">#E5B542</color>
+    <color name="ink">#EEF2F8</color>
+    <color name="muted">#9FB0C9</color>
+</resources>

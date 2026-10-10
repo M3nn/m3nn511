@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "منصة أخبار النصر",
+  "short_name": "أخبار النصر",
+  "description": "آخر أخبار نادي النصر، نتائج دوري روشن، مواعيد المباريات والتحليلات.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
+  "categories": ["news", "sports"],
+  "icons": [
+    { "src": "/static/img/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/img/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/img/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/static/img/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "آخر الأخبار", "short_name": "الأخبار", "url": "/", "icons": [{ "src": "/static/img/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "البحث", "short_name": "البحث", "url": "/search", "icons": [{ "src": "/static/img/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

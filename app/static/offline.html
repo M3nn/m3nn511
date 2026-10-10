@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>غير متصل — منصة أخبار النصر</title>
+  <meta name="theme-color" content="#0a1628">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      background: radial-gradient(1200px 600px at 50% -10%, #16325a 0%, #0a1628 60%);
+      color: #eef2f8; font-family: "Segoe UI", Tahoma, system-ui, sans-serif; padding: 24px;
+    }
+    .card {
+      max-width: 420px; text-align: center; background: #0f2440;
+      border: 1px solid #1e4276; border-radius: 18px; padding: 32px 26px;
+      box-shadow: 0 18px 44px rgba(0,0,0,.35);
+    }
+    .logo { width: 96px; height: 96px; object-fit: contain; margin-bottom: 8px; }
+    h1 { color: #e5b542; font-size: 1.4rem; margin: 8px 0 6px; }
+    p { color: #b9c6dd; line-height: 1.9; margin: 0 0 18px; }
+    button {
+      font: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: 12px 22px;
+      background: linear-gradient(180deg, #e5b542, #d79b18); color: #14213a; font-weight: 700;
+    }
+    .hint { font-size: .82rem; color: #7f8fae; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="/static/img/nassr-logo.png" alt="النصر السعودي">
+    <h1>لا يوجد اتصال بالإنترنت</h1>
+    <p>تعذّر الوصول إلى الشبكة. تحقّق من اتصالك ثم أعد المحاولة — ستعود الأخبار المحفوظة للظهور.</p>
+    <button onclick="location.reload()">إعادة المحاولة</button>
+    <p class="hint">منصة أخبار النصر · تعمل الآن كتطبيق</p>
+  </div>
+</body>
+</html>

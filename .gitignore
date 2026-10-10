@@ -31,3 +31,14 @@ c.txt
 /login2.html
 /login3.html
 /login_debug.txt
+
+# ملفات اختبار/معاينة مؤقتة (تُنشأ محلياً عند الحاجة)
+app/static/_*.html
+tools/_*.py
+
+# مشروع أندرويد — مخرجات البناء والمحلية
+android/**/local.properties
+android/**/.gradle/
+android/**/build/
+android/**/.idea/
+android/**/*.iml

@@ -997,3 +997,116 @@ textarea:focus-visible, summary:focus-visible {
   .league-col, .arena-center .hero { animation: none; }
   .live-dot, .updated-dot { animation: none; }
 }
+
+/* ==========================================================================
+   توافق الشاشات — الهواتف والأجهزة اللوحية
+   لا تغيّر شيئًا على الشاشات الكبيرة؛ تعالج التراكب وضغط الأعمدة عند صغر العرض.
+   ========================================================================== */
+
+/* --- أجهزة لوحية وصغيرة (≤ 900px): ترويسة بلا تراكب + التفاف القوائم --- */
+@media (max-width: 900px) {
+  /* الترويسة: إلغاء إزاحة الشعار والتموضع المطلق للزر (كانا يتراكبان مع
+     شريط التصنيفات ويغطّيان الروابط على الشاشات الضيقة). */
+  .topbar-inner {
+    margin-inline: 0;
+    padding: 10px 14px;
+    gap: 8px 14px;
+  }
+  .brand { transform: none; }
+  .brand-mark { height: 46px; }
+  .brand-lead { font-size: 1.55em; }
+  .brand-sub { font-size: .9em; }
+
+  /* الزر يبقى نسبيًا (لأجل بريق ::after) لكن ضمن التدفّق بلا إزاحة */
+  .topbar .cta {
+    position: relative;
+    top: auto;
+    inset-inline-end: auto;
+    transform: none;
+    margin-inline-start: auto;
+  }
+
+  /* روابط الموظفين (المهام/التحرير/التصنيفات…) تأخذ سطرها الخاص */
+  .topbar .usernav {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 6px 14px;
+  }
+
+  /* شريط التصنيفات: التفاف بدل التمرير الأفقي، والبحث في سطر كامل في الأعلى */
+  .cats-inner {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    justify-content: center;
+    padding: 9px 14px;
+    row-gap: 3px;
+  }
+  .cats .searchbar {
+    position: relative; /* يبقى مرجعًا لزر البحث المطلق بداخله */
+    inset: auto;
+    transform: none;
+    order: -1;
+    width: 100%;
+    margin: 0 0 6px;
+  }
+  .cats a { padding: 5px 11px; font-size: .85rem; }
+
+  .searchbar { display: flex; width: 100%; }
+  .searchbar input { width: 100%; }
+
+  /* حشوة المحتوى */
+  .main { padding: 18px 14px 40px; }
+  .page-head h1 { font-size: 1.4rem; }
+  .post-head h1 { font-size: 1.5rem; }
+}
+
+/* --- شاشات صغيرة (≤ 700px): الجداول تتمرّر أفقيًا بدل انضغاط الأعمدة --- */
+@media (max-width: 700px) {
+  .table { min-width: 620px; }
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+
+  /* الأشرطة الممتدة بعرض الصفحة: حشوة أصغر */
+  .arena { padding: 20px 12px 24px; }
+  .news-band, .ticker-band { padding-inline: 12px; }
+  .section-divider { margin: 30px auto; }
+}
+
+/* --- هواتف (≤ 560px) --- */
+@media (max-width: 560px) {
+  .brand-lead { font-size: 1.4em; }
+  .brand-mark { height: 42px; }
+
+  .hero-title,
+  .arena-center .hero-title { font-size: 1.15rem; }
+  .hero-sum { font-size: .9rem; }
+  .card-xl .card-title { font-size: 1.2rem; }
+  .post-body p { font-size: 1rem; line-height: 1.9; }
+
+  .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-num { font-size: 1.6rem; }
+
+  .filters { gap: 5px; }
+  .filters a { padding: 5px 11px; font-size: .82rem; }
+
+  /* أزرار رأس الصفحة تتوزّع بعرض كامل */
+  .head-actions { width: 100%; }
+  .head-actions .btn { flex: 1 1 auto; }
+
+  .slider-arrow { width: 32px; height: 32px; }
+  .tip-head { flex-wrap: wrap; }
+}
+
+/* التفاف الأسطر الوصفية القصيرة حتى لا تُفرِط أفقيًا */
+.post-meta, .card-meta, .hero-meta { flex-wrap: wrap; }
+
+/* زر تثبيت التطبيق (PWA) — يظهر فقط حين يسمح المتصفّح بالتثبيت */
+.pwa-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+.pwa-install[hidden] { display: none; }

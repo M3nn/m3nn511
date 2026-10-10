@@ -52,6 +52,7 @@ def create_app(config_name: str | None = None) -> Flask:
     _register_blueprints(app)
     _register_template_helpers(app)
     _register_error_handlers(app)
+    _register_pwa(app)
     _register_cli(app)
     _register_login(app)
     _bootstrap_database(app)
@@ -214,6 +215,32 @@ def _nav_categories():
         # قبل init-db: الصفحة تعمل لكن بلا شريط تصنيفات
         log.debug("nav.categories_unavailable", exc_info=True)
         return []
+
+
+def _register_pwa(app: Flask) -> None:
+    """مسارات تطبيق الويب (PWA): البيان، عامل الخدمة، وصفحة عدم الاتصال.
+
+    تُقدَّم من جذر النطاق (لا من /static) ليتمكّن عامل الخدمة من التحكم
+    بكامل الموقع (scope=/)."""
+    from flask import send_from_directory
+
+    @app.route("/manifest.webmanifest")
+    def pwa_manifest():
+        return send_from_directory(
+            app.static_folder, "manifest.webmanifest",
+            mimetype="application/manifest+json",
+        )
+
+    @app.route("/sw.js")
+    def pwa_service_worker():
+        resp = send_from_directory(app.static_folder, "sw.js", mimetype="application/javascript")
+        resp.headers["Service-Worker-Allowed"] = "/"
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return resp
+
+    @app.route("/offline.html")
+    def pwa_offline():
+        return send_from_directory(app.static_folder, "offline.html", mimetype="text/html")
 
 
 def _register_error_handlers(app: Flask) -> None:
