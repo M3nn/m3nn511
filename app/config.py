@@ -60,6 +60,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = _engine_options(SQLALCHEMY_DATABASE_URI)
 
+    # ---- مسؤول أول يُنشأ تلقائياً عند الإقلاع إن كانت القاعدة فارغة ----
+    # مفيد للنشر على استضافات ذات ملفات مؤقتة (مثل Render المجاني) حيث تعاد
+    # تهيئة القاعدة بعد كل إعادة تشغيل. تجاهل كليهما لإبقاء القاعدة بلا مستخدمين.
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "").strip()
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "").strip()
+    ADMIN_DISPLAY_NAME = os.getenv("ADMIN_DISPLAY_NAME", "").strip()
+
     # حجم الصفحة الموحّد عبر الموقع كله
     ITEMS_PER_PAGE = int(os.getenv("ITEMS_PER_PAGE", "13"))
     ITEMS_PER_PAGE_ADMIN = 20

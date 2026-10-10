@@ -54,6 +54,7 @@ def create_app(config_name: str | None = None) -> Flask:
     _register_error_handlers(app)
     _register_cli(app)
     _register_login(app)
+    _bootstrap_database(app)
 
     @app.after_request
     def _security_headers(response):
@@ -92,6 +93,35 @@ def _register_login(app: Flask) -> None:
         # request.full_path adds a trailing "?" always; strip it so the
         # login URL does not become /auth/login?next=/editor?
         return redirect(url_for("auth.login", next=request.full_path.rstrip("?")))
+
+
+def _bootstrap_database(app: Flask) -> None:
+    """تهيئة قاعدة فارغة عند الإقلاع: إنشاء الجداول، وإنشاء مسؤول أول من
+    متغيرات البيئة (ADMIN_USERNAME/ADMIN_PASSWORD) عند ضبطهما.
+
+    الغاية: أن يعمل الموقع بعد أول نشر مباشرةً بلا حاجة لتشغيل ``flask init-db``
+    يدوياً، وأن يتعافى تلقائياً على الاستضافات ذات الملفات المؤقتة (Render
+    المجاني) حيث تُفقد القاعدة عند النوم/إعادة النشر. تُتجاهل في الاختبارات."""
+    if app.config.get("TESTING"):
+        return
+
+    from app.models import AIUsage, Article, Category, Role, Task, User  # noqa: F401
+
+    username = (app.config.get("ADMIN_USERNAME") or "").strip()
+    password = (app.config.get("ADMIN_PASSWORD") or "").strip()
+    try:
+        with app.app_context():
+            db.create_all()
+            if username and password:
+                if db.session.scalar(db.select(User).where(User.username == username)) is None:
+                    display = (app.config.get("ADMIN_DISPLAY_NAME") or "").strip() or username
+                    admin = User(username=username, display_name=display, role=Role.ADMIN)
+                    admin.set_password(password)
+                    db.session.add(admin)
+                    db.session.commit()
+                    log.info("bootstrap.admin_created username=%s", username)
+    except Exception:  # لا نُسقط العامل إن تعذّر الوصول للقاعدة
+        log.error("bootstrap.failed", exc_info=True)
 
 
 def _register_blueprints(app: Flask) -> None:
