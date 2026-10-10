@@ -113,13 +113,23 @@ def _bootstrap_database(app: Flask) -> None:
         with app.app_context():
             db.create_all()
             if username and password:
-                if db.session.scalar(db.select(User).where(User.username == username)) is None:
-                    display = (app.config.get("ADMIN_DISPLAY_NAME") or "").strip() or username
-                    admin = User(username=username, display_name=display, role=Role.ADMIN)
-                    admin.set_password(password)
-                    db.session.add(admin)
-                    db.session.commit()
+                display = (app.config.get("ADMIN_DISPLAY_NAME") or "").strip() or username
+                user = db.session.scalar(db.select(User).where(User.username == username))
+                if user is None:
+                    user = User(username=username, display_name=display, role=Role.ADMIN)
+                    user.set_password(password)
+                    db.session.add(user)
                     log.info("bootstrap.admin_created username=%s", username)
+                else:
+                    # المتغيّر هو المصدر الوحيد: نُزامن الصلاحية والاسم دائماً
+                    user.role = Role.ADMIN
+                    if (app.config.get("ADMIN_DISPLAY_NAME") or "").strip():
+                        user.display_name = display
+                    # نُعيد الهاش فقط عند تغيّر كلمة المرور
+                    if not user.check_password(password):
+                        user.set_password(password)
+                    log.info("bootstrap.admin_synced username=%s", username)
+                db.session.commit()
     except Exception:  # لا نُسقط العامل إن تعذّر الوصول للقاعدة
         log.error("bootstrap.failed", exc_info=True)
 

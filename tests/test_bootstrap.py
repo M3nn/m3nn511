@@ -30,9 +30,17 @@ def test_bootstrap_creates_tables_and_admin():
         assert admin.display_name == "مدير النظام"
         assert admin.check_password("Strong-pass-!9")
 
-        # إعادة الإقلاع (استدعاء ثانٍ) لا تنشئ مسؤولاً مكرراً
-        _bootstrap_database(app)
+    # إعادة الإقلاع (استدعاء ثانٍ) لا تنشئ مسؤولاً مكرراً
+    _bootstrap_database(app)
+    with app.app_context():
         assert db.session.scalar(db.select(db.func.count(User.id))) == 1
+
+    # تغيير ADMIN_PASSWORD ثم الإقلاع يزامن كلمة مرور المسؤول
+    app.config["ADMIN_PASSWORD"] = "Another-pass-!7"
+    _bootstrap_database(app)
+    with app.app_context():
+        admin = db.session.scalar(db.select(User).where(User.username == "admin"))
+        assert admin.check_password("Another-pass-!7")
 
 
 def test_bootstrap_creates_tables_even_without_admin():
